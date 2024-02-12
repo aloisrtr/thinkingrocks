@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ThinkingRocks - Writing an efficient game representation for chess</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="../css/syntax.css" />
+  <link rel="stylesheet" href="../css/default.css" />
+  <link rel="icon" href="../files/favicon.ico" />
+</head>
+
+<body>
+  <header>
+    <div id="nav">
+      <a href="../" class="mobile-hidden">home</a>
+      <a href="../blog.html" class="mobile-hidden">posts</a>
+      <a href="../files/resume.pdf" class="mobile-hidden" target="_blank">resume</a>
+    </div>
+
+    <div id="socials">
+      <p class="mobile-hidden">alois.rautureau@ens-rennes.fr</p>
+      <a href="mailto:alois.rautureau@ens-rennes.fr" target="_blank">
+        <i class="fa fa-envelope nav-icon"></i>
+      </a>
+      <div style="height: 1.7em;" class="separator"></div>
+      <a href="https://gitlab.com/aloisrtr" target="_blank">
+        <i class="fa fa-gitlab nav-icon"></i>
+      </a>
+      <a href="https://github.com/aloisrtr" target="_blank">
+        <i class="fa fa-github nav-icon"></i>
+      </a>
+    </div>
+  </header>
+
+
+
+  <main role="main">
+    <p class="header">
+  Writing an efficient game representation for chess
+</p>
+<p class="date">
+  posted on February 12, 2024
+</p>
+<div>
+  <p>I’ve recently (re-)fell in the good old rabbit hole that got me into computer science
+in the first place: chess programming.</p>
+<p>This is probably my third or fourth rewrite of <a href="https://github.com/aloisrtr/chameleon-chess">chameleon-chess</a>,
+except this time I’m pretty happy with the game representation, which was a huge blocking
+point for me before.</p>
+<h2 id="whats-a-game-representation-why-do-we-care">What’s a game representation? Why do we care?</h2>
+<p>Chess engines (and many board game bots) can be separated into three core components:</p>
+<ul>
+<li>game representation, responsible for encoding game state and actions from one state to another.</li>
+<li>search algorithms to find the best action given a game state.</li>
+<li>evaluation, heuristics to guess the probabilities of winning when we’re in a certain state.</li>
+</ul>
+<p>If you’ve got some knowledge about computer science, a game representation can be thought of
+as a really really big graph where states are linked to each other if an action from state A can
+transform it into state B.</p>
+<blockquote>
+<p>Games are often really, <strong>really</strong> big, too big to fit into memory, which is why we define the graph <em>implicitly</em>.</p>
+</blockquote>
+<p>Game representation is a bit of a sore spot for me. To put it bluntly, it can break
+<strong>but not make</strong> your engine. A bad game representation leads to really poor performance,
+yet a good one does not make your engine inherently stronger. This imbalance is caused by the fact
+that you rely on game representation to traverse game states, so it need to be
+at least really really efficient. But you also want to avoid traversing the tree too much,
+so the stronger your engine becomes, the less game representation speed is relevant.</p>
+<p>Writing an efficient and correct game representation is <strong>important</strong>, and there
+aren’t a ton of detailled tutorials on how to do so. Let’s fix that!</p>
+<blockquote>
+<p>The <a href="https://www.chessprogramming.org">chess programming wiki</a> offers a lot of information on various techniques used, and in great detail!</p>
+<p>It just lacks the “put it all together” part.</p>
+</blockquote>
+<h2 id="ok-what-do-we-need">Ok, what do we need?</h2>
+<p>A good first question indeed: what information do we need to store?</p>
+<p>A chess position is represented by:</p>
+<ul>
+<li>the position of pieces on the board.</li>
+<li>which player’s turn it is.</li>
+<li><a href="https://en.wikipedia.org/wiki/Castling">castling rights</a>.</li>
+<li><a href="https://en.wikipedia.org/wiki/En_passant">en passant</a> target square.</li>
+</ul>
+<blockquote>
+<p>There are also a few more metadata fields needed, like keeping track of <a href="https://en.wikipedia.org/wiki/Threefold_repetition">repetitions</a> or the <a href="https://en.wikipedia.org/wiki/Fifty-move_rule">fifty-move rule</a>, but they’re not that relevant here.</p>
+</blockquote>
+<p>We also need to know <strong>how</strong> these informations will be used. Actions in chess are moves. We need
+to be able to know which moves we can make, and how to modify the position’s data to go
+back and forth between positions given a move.</p>
+<p>These will be our three main functions:</p>
+<ul>
+<li><code class="sourceCode rust"><span class="kw">fn</span> make(p<span class="op">:</span> Position<span class="op">,</span> m<span class="op">:</span> Move)</code> modifies the position as if we played the given move.</li>
+<li><code class="sourceCode rust"><span class="kw">fn</span> unmake(p<span class="op">:</span> Position<span class="op">,</span> m<span class="op">:</span> Move)</code> resets the position state to what it was before making a move.</li>
+<li><code class="sourceCode rust"><span class="kw">fn</span> moves(p<span class="op">:</span> Position) <span class="op">-&gt;</span> [Move]</code> creates a list of legal moves for a given position.</li>
+</ul>
+<blockquote>
+<p>We could choose to generate <strong>pseudo-legal moves</strong>, which follow the rules of chess, but might leave the king in check.</p>
+<p>Those moves are invalid, which means that we need to check whether they leave the king in check after making them instead of during move generation.</p>
+<p>Most of the time, this tradeoff is <strong>not worth it</strong>, so we’ll generate only legal moves.</p>
+</blockquote>
+<h2 id="encoding-our-chess-board">Encoding our chess board</h2>
+<p>I’ll be keeping this part brief: <strong>try to compress your representation</strong>.</p>
+<p>Using the cache efficiently is incredibly important for chess engines.</p>
+<p>For reference, piece codes are kept a byte in size, moves are two bytes.</p>
+<p>As for the actual board, there are two ways to go about it: <strong>piece</strong> or <strong>square</strong> centric.
+The former keeps information of where pieces are, while the latter
+keeps information of what is on a given square.</p>
+<figure>
+<img src="../files/writing-an-efficient-game-representation-for-chess/square_piece.png" style="width:30.0%" alt="Diagram comparing piece and square centric representations" />
+<figcaption aria-hidden="true">Diagram comparing piece and square centric representations</figcaption>
+</figure>
+<p><strong>Piece centric</strong> representations are faster when iterating over pieces (in move generation
+for example) because they avoid constantly checking “is there even a piece here?”.
+<strong>Square centric</strong> representations are faster at answering “which piece is on this square?”,
+which can be useful when making and unmaking moves.</p>
+<p>Therefore, most engines nowadays say… <strong>“why not both?”</strong>. This wastes a bit of
+space, and we get redundant information, but it’s way faster to query said information
+when needed!</p>
+<p>My board representation combines an 8x8 array of <code class="sourceCode rust"><span class="dt">Option</span><span class="op">&lt;</span>PieceKind<span class="op">&gt;</span></code> with
+a piece-centric representation known as <a href="https://en.wikipedia.org/wiki/Bitboard">bitboards</a>.</p>
+<h3 id="bitboards-101">Bitboards 101</h3>
+<p>A bitboard can be thought of as a set of elements that can be indexed, with the bit at
+index <span class="math inline"><em>n</em></span> set to <span class="math inline">1</span> if the <span class="math inline"><em>n</em><sup><em>t</em><em>h</em></sup></span> element is present and <span class="math inline">0</span> otherwise.</p>
+<p>The cool thing about applying this to chess boards is that <strong>we have 64 squares</strong>, and can
+therefore store this set information in a <strong>64 bit integer</strong>.</p>
+<p>The crux of the idea is to store one bitboard per piece kind and one bitboard per color.
+We can then do setwise operations in <strong>a single instruction</strong>.</p>
+<p>For example, say we want to get a bitboard of white pawns. Well, this translates to:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode rust"><code class="sourceCode rust"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> white_pawn_bitboard <span class="op">=</span> pawn_bitboard <span class="op">&amp;</span> white_bitboard</span></code></pre></div>
+<figure>
+<img src="../files/writing-an-efficient-game-representation-for-chess/bitboard_example.png" style="width:60.0%" alt="Bitboard usage example" />
+<figcaption aria-hidden="true">Bitboard usage example</figcaption>
+</figure>
+<p>This becomes particularily useful when applying shifts, or filtering attackable/movable
+squares, as we’ll see in a minute.</p>
+<h2 id="generating-moves">Generating moves</h2>
+<p>Now we move on to the interesting part: <strong>how can we use that to generate moves?</strong> I’ll first present general techniques without caring about legality. We’ll handle that afterwards!</p>
+<h3 id="pawns">Pawns</h3>
+<p>Pawns are really benefitting from the bitboard representation. We start by filtering pawns
+which are about to promote, separating them from the rest:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode rust"><code class="sourceCode rust"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> pawns <span class="op">=</span> pawn_bitboard <span class="op">&amp;</span> side_to_move_bitboard<span class="op">;</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> promoting_pawns <span class="op">=</span> pawns <span class="op">&amp;</span> promoting_rank<span class="op">;</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> pawns <span class="op">=</span> pawns <span class="op">^</span> promoting_pawns<span class="op">;</span></span></code></pre></div>
+<p>We can than generate pawn moves by <strong>shifting the entire bitboard</strong> in different directions.</p>
+<figure>
+<img src="../files/writing-an-efficient-game-representation-for-chess/shift_example.png" style="width:50.0%" alt="We shift the bitboard in the north direction, moving all bits to the next rank. This represents our pawn pushes!" />
+<figcaption aria-hidden="true">We shift the bitboard in the north direction, moving all bits to the next rank. This represents our pawn pushes!</figcaption>
+</figure>
+<p>However, we’re not done here: what if there are already pieces on the squares we want to
+get to? Pawns can’t capture by moving forward!</p>
+<p>Well, we can mask this <code>pawn_pushes_bitboard</code> by an <code>empty</code> bitboard that contains
+set bits wherever there are no pieces. This bitboard can be obtained by negating the union
+of our two color bitboards, pretty neat!</p>
+<figure>
+<img src="../files/writing-an-efficient-game-representation-for-chess/blockers_example.png" style="width:60.0%" alt="Taking an arbitraty empty bitboard, here’s what would happen." />
+<figcaption aria-hidden="true">Taking an arbitraty empty bitboard, here’s what would happen.</figcaption>
+</figure>
+<p>I’m not going to detail more than this here, but the same ideas can be applied
+for all pawn movements. You generate a set of potential target squares, then mask
+it by squares that can actually be moved to (empty ones for pushes, enemy pieces for captures, etc).</p>
+<h3 id="knights-and-kings">Knights and kings</h3>
+<p>Knights and kings are different from pawns: there are a looot of deltas that can be applied,
+and most of the time only two knights and one king. We don’t benefit much from parallelization
+here.</p>
+<p>Instead, we can calculate a lookup table of potential moves for each origin square!
+We could then access the moves for a knight on d5 this way:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode rust"><code class="sourceCode rust"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> knight_moves <span class="op">=</span> KNIGHT_LOOKUP[<span class="pp">Square::</span>D5]<span class="op">;</span></span></code></pre></div>
+<figure>
+<img src="../files/writing-an-efficient-game-representation-for-chess/lookup_knight.png" style="width:20.0%" alt="Example of knight moves from the d5 square." />
+<figcaption aria-hidden="true">Example of knight moves from the d5 square.</figcaption>
+</figure>
+<p>There’s not much going on for knights and kings appart from that, they’re pretty simple!</p>
+<h3 id="sliding-pieces">Sliding pieces</h3>
+<p><em>Uh oh…</em></p>
+<p>Sliding pieces (bishops, rooks and queens) are a bit more tricky. The main difficulty
+is the fact that their moves can be thought of as rays that can be blocked by
+other pieces! We can’t simply create a lookup table associating an attack bitboard from
+each square like knights and kings, since we also depend on the state of the board.</p>
+<p>There are two (main) ways to go about things:</p>
+<ul>
+<li>calculating the attacks using fill algorithms on bitboards (<a href="https://www.chessprogramming.org/Dumb7Fill">Dumb7Fill</a>, <a href="https://www.chessprogramming.org/Kogge-Stone_Algorithm">Kogge-Stone</a> or <a href="https://www.chessprogramming.org/Fill_by_Subtraction">Fill by subtraction</a> are good examples).</li>
+<li>creating lookup tables indexed by square <strong>and blockers</strong>.</li>
+</ul>
+<p>We’ll be focusing on the latter since it is really often faster, albeit a bit more involved than
+“filling until we hit a piece”. More precisely, we’ll be looking at <a href="https://www.chessprogramming.org/Magic_Bitboards">magic bitboard</a>.</p>
+<blockquote>
+<p>There are other ways to create lookup tables, which I’ll mention briefly:</p>
+<ul>
+<li><a href="https://www.chessprogramming.org/Rotated_Bitboards">rotated bitboards</a> cover line attacks only, and require additionnal bitboards updated incrementally to work efficiently.</li>
+<li><a href="https://www.chessprogramming.org/Kindergarten_Bitboards">kindergarten bitboard</a> are more efficient, but require some calculation. They are a good middle ground between pure lookup and pure calculation!</li>
+</ul>
+<p>The main advantage of magic bitboards is that they cover rook and bishop attacks (two lines)
+at once rather than a single line each time.</p>
+</blockquote>
+<p>What we’re trying to find is a <a href="https://en.wikipedia.org/wiki/Perfect_hash_function">perfect hash function</a>
+from blockers to attacks for each square. If this seems like a complex endeavour, you’d
+be right! Thankfully, smarter folks have already thought about it for us.</p>
+<p>First of all, we don’t want to perfectly hash <em>all possible blocker setups</em>. Taking a
+bishop on e4, it doesn’t matter to us wether a piece is on d2: we wouldn’t cross it
+anyway.</p>
+<p>What we want is, once again, to <strong>mask relevant blockers</strong> and use this as a key. Already, we’ve
+simplified our search quite a bit!</p>
+<figure>
+<img src="../files/writing-an-efficient-game-representation-for-chess/relevant_blockers.png" style="width:60.0%" alt="Computing relevant blockers for a bishop on c4." />
+<figcaption aria-hidden="true">Computing relevant blockers for a bishop on c4.</figcaption>
+</figure>
+<p>Now, we’ve got a little problem… How do we transform our relevant blockers into a unique key?</p>
+<p>Well, folks, I present to you the solution to any complex problem: <strong>brute-force!</strong></p>
+<p>Yup, you’ve heard that right, what we’re going to find is a <strong>magic number</strong> (thus the name)
+that, when multiplied with our bitboard and then shifted by a number of bits <span class="math inline"><em>n</em></span>,
+perfectly maps blockers to the correct set of attacked square.</p>
+<p>There is a <a href="https://analog-hors.github.io/site/magic-bitboards/">great article by Analog Hors</a> on
+the process of computing and using said magic numbers, so I won’t delve into it too deeply.
+Just remember that we have a function that, given an origin square and a set of blockers,
+returns the squares attacked by a bishop/rook on said origin square.</p>
+<blockquote>
+<p>There are <strong>a lot</strong> of improvements for magic bitboards. Some are <a href="https://www.chessprogramming.org/BMI2#PEXTBitboards">dependant on
+specific hardware instructions</a>,
+others are implemented using more advanced hashing functions.</p>
+<p>As mentionned before, small gains get more and more negligeable past a certain point.
+Magic bitboards are more than sufficient for now, and the small improvements granted
+by more advanced implementations tend to get negligeable within an engine, so I won’t
+talk about them here.</p>
+<p>Still, it’s a depply interesting ~rabbit hole~ topic to dive into if you’ve got
+time to dedicate to it! Maybe you could be the one to find better magic numbers
+for some origin square?</p>
+</blockquote>
+<h3 id="that-was-an-illegal-left-by-the-way">“That was an illegal left by the way”</h3>
+<p>Okay, okay, let’s make sure our moves are legal now!</p>
+<p>First, let’s see… Which of our generated moves <em>could be</em> illegal?
+Well, there are a few:</p>
+<ul>
+<li>moves of a piece that would leave the king in check. Such pieces are called <a href="https://en.wikipedia.org/wiki/Pin_(chess)">absolutely pinned</a> and cannot move except along the ray that pins them to the king.</li>
+<li>en passant captures can, in specific cases, leave the king in check by making two pawns disappear on the same rank.</li>
+<li>moves other than the king’s if it is checked by two or more pieces.</li>
+<li>if the king is checked by a single piece, moves that do not capture the checking piece or block the attack ray.</li>
+<li>in general, king moves to attacked squares.</li>
+<li>castling over attacked squares.</li>
+</ul>
+<p><em>Phew</em>, okay, how do we deal with that?</p>
+<h4 id="pins-checks-and-attacks">Pins, checks and attacks</h4>
+<p>Three informations are clearly of importance here:
+- whether the king is in check, and if so, does more than one piece attack it?
+- which pieces are pinned, and where can they move?
+- which squares are attacked?</p>
+<p>This all depends on moves that the ennemy pieces can make! We don’t want to generate
+every move for every ennemy piece tho, that would just double our workload and is unnecessary.</p>
+<p>What we’ll do instead is compute three bitboards:
+- attacked squares.
+- checking piece(s).
+- pieces of the moving side which are not pinned.</p>
+<p>This is done by generating attack targets (not actual moves, the distinction is important)
+for all ennemy pieces.</p>
+<p>Pawns, knights and kings cannot create pins. This makes it easier to deal with them:
+just generate their attack targets and add them to the bitboard of attacked squares.</p>
+<p>If at this point the attack bitboard intersects with our king bitboard, we’re in check!
+We generate attacks from our king, and intersect them with ennemy pawns/knights, then add
+the result to the checking pieces’ bitboard.</p>
+<blockquote>
+<p>I’ve left out the ennemy king in that last part. The reason is that it cannot ever
+check our own king, otherwise we’d already be in an illegal position.</p>
+</blockquote>
+<p>Now we get to the fun part: <strong>sliders</strong>.</p>
+<p>First, the attack bitboard. One may think that simply reusing our magic bitboards would
+work, but this leads to a sneaky bug: <strong>our king is considered to be a blocker</strong>.</p>
+<figure>
+<img src="../files/writing-an-efficient-game-representation-for-chess/slide_away.png" style="width:50.0%" alt="Example where using the king as a blocker is incorrect: we could generate a move to the north, which would still leave us in check." />
+<figcaption aria-hidden="true">Example where using the king as a blocker is incorrect: we could generate a move to the north, which would still leave us in check.</figcaption>
+</figure>
+<blockquote>
+<p>You might notice that some squares here are not <em>actually attacked</em>. So is our attack bitboard
+wrong?</p>
+<p>Well, if we’re asking for a set of actually attacked squares, yes, it is wrong.
+But we’re only interested in squares our king cannot move to <strong>or</strong> squares that we cannot
+castle through. Here, both are valid.</p>
+</blockquote>
+<p>Our attack map is now correctly generated: yay!</p>
+<p>What about pins tho? How do we deal with those?</p>
+<p>What we’ll do is generate sliding attacks <strong>originating from our king</strong> and <strong>ignoring
+allied pieces</strong>, then intersecting this bitboard with corresponding ennemy sliders
+(bishops and queens for diagonal attacks, rooks and queens for orthogonal attacks).</p>
+<p>If this intersection is not empty,</p>
+</div>
+  </main>
+
+  <footer>
+    Site generated using
+    <a href="http://jaspervdj.be/hakyll">Hakyll</a>
+  </footer>
+</body>
+
+</html>

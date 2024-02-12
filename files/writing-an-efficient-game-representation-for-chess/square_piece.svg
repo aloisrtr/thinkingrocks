@@ -1,0 +1,21 @@
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 411.31666564941406 185.12452296568915" width="411.31666564941406" height="185.12452296568915">
+  <!-- svg-source:excalidraw -->
+  
+  <defs>
+    <style class="style-fonts">
+      @font-face {
+        font-family: "Virgil";
+        src: url("https://excalidraw.com/Virgil.woff2");
+      }
+      @font-face {
+        font-family: "Cascadia";
+        src: url("https://excalidraw.com/Cascadia.woff2");
+      }
+      @font-face {
+        font-family: "Assistant";
+        src: url("https://excalidraw.com/Assistant-Regular.woff2");
+      }
+    </style>
+    
+  </defs>
+  <g transform="translate(332 67) rotate(0 34.65833282470703 17.5)"><text x="0" y="0" font-family="Virgil, Segoe UI Emoji" font-size="28px" fill="#cecdc3" text-anchor="start" style="white-space: pre;" direction="ltr" dominant-baseline="text-before-edge">Piece</text></g><g stroke-linecap="round"><g transform="translate(117.91666523332844 87.55113714108984) rotate(0 99.54672884107157 -20.29788334417111)"><path d="M0.65 0.04 C17.5 -6.47, 67.89 -38.05, 100.94 -39.49 C133.99 -40.94, 182.63 -13.64, 198.94 -8.63 M-0.47 -0.98 C16.23 -7.76, 66.8 -39.97, 99.9 -41.04 C132.99 -42.1, 181.59 -12.75, 198.1 -7.37" stroke="#cecdc3" stroke-width="2" fill="none"></path></g><g transform="translate(117.91666523332844 87.55113714108984) rotate(0 99.54672884107157 -20.29788334417111)"><path d="M173.15 -9.06 C180.32 -9.03, 189.19 -8.49, 198.1 -7.37 M173.15 -9.06 C179.49 -7.45, 187.89 -7.06, 198.1 -7.37" stroke="#cecdc3" stroke-width="2" fill="none"></path></g><g transform="translate(117.91666523332844 87.55113714108984) rotate(0 99.54672884107157 -20.29788334417111)"><path d="M180.08 -24.7 C185.21 -20.18, 192.11 -15.18, 198.1 -7.37 M180.08 -24.7 C184.37 -18.61, 190.76 -13.69, 198.1 -7.37" stroke="#cecdc3" stroke-width="2" fill="none"></path></g></g><mask></mask><g stroke-linecap="round"><g transform="translate(324.56490685290737 99.21534014734561) rotate(0 -108.94648664618316 16.402228645383246)"><path d="M0.3 0.82 C-17.57 6.3, -71.62 32.11, -107.88 32.37 C-144.14 32.63, -198.88 7.21, -217.24 2.39 M-1 0.21 C-18.99 5.9, -72.81 33.1, -108.92 33.68 C-145.04 34.27, -199.5 9.1, -217.67 3.73" stroke="#cecdc3" stroke-width="2" fill="none"></path></g><g transform="translate(324.56490685290737 99.21534014734561) rotate(0 -108.94648664618316 16.402228645383246)"><path d="M-192.67 3.7 C-197.4 3.46, -205.6 4.86, -217.67 3.73 M-192.67 3.7 C-200.38 3.83, -208.06 3.18, -217.67 3.73" stroke="#cecdc3" stroke-width="2" fill="none"></path></g><g transform="translate(324.56490685290737 99.21534014734561) rotate(0 -108.94648664618316 16.402228645383246)"><path d="M-198.5 19.77 C-201.74 15.6, -208.52 13.07, -217.67 3.73 M-198.5 19.77 C-204.41 14.98, -210.33 9.44, -217.67 3.73" stroke="#cecdc3" stroke-width="2" fill="none"></path></g></g><mask></mask><g transform="translate(125 10) rotate(0 98.10832977294922 17.5)"><text x="0" y="0" font-family="Virgil, Segoe UI Emoji" font-size="28px" fill="#ce5d97" text-anchor="start" style="white-space: pre;" direction="ltr" dominant-baseline="text-before-edge">Square-centric</text></g><g transform="translate(133 138) rotate(1.4249720990737482 85.6500015258789 17.5)"><text x="0" y="0" font-family="Virgil, Segoe UI Emoji" font-size="28px" fill="#ce5d97" text-anchor="start" style="white-space: pre;" direction="ltr" dominant-baseline="text-before-edge">Piece-centric</text></g><g transform="translate(10 60) rotate(0 47.11666488647461 17.5)"><text x="0" y="0" font-family="Virgil, Segoe UI Emoji" font-size="28px" fill="#cecdc3" text-anchor="start" style="white-space: pre;" direction="ltr" dominant-baseline="text-before-edge">Square</text></g></svg>
