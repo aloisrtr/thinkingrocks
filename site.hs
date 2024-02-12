@@ -15,7 +15,15 @@ config = defaultConfiguration { destinationDirectory = "docs" }
 
 pandocCodeStyle :: IO Style
 pandocCodeStyle = runIOorExplode (lookupHighlightingStyle "flexoki.theme")
-    
+
+rssFeedConfiguration :: FeedConfiguration
+rssFeedConfiguration = FeedConfiguration {
+    feedTitle = "ThinkingRocks",
+    feedDescription = "Blogposts about the endeavours of a computer science student",
+    feedAuthorName = "Aloïs Rautureau",
+    feedAuthorEmail = "alois.rautureau@ens-rennes.fr",
+    feedRoot = "https://aloisrtr.github.io/thinkingrocks"
+}    
 
 pandocCompilerWithStyle :: Style -> Compiler (Item String)
 pandocCompilerWithStyle s = 
@@ -28,6 +36,12 @@ pandocCompilerWithStyle s =
 
 createBlog style = 
     hakyllWith config $ do
+        create ["rss.xml"] $ do
+            route idRoute
+            compile $ do
+                let feedCtx = postCtx `mappend` bodyField "description"
+                posts <- fmap (take 10) . recentFirst =<< loadAllSnapshots "posts/*" "content"
+                renderRss rssFeedConfiguration feedCtx posts
 
         match "files/*/*" $ do
             route   idRoute
@@ -45,6 +59,7 @@ createBlog style =
         match "posts/*" $ do
             route $ setExtension "html"
             compile $ pandocCompilerWithStyle style
+                >>= saveSnapshot "content"
                 >>= loadAndApplyTemplate "templates/post.html"    postCtx
                 >>= loadAndApplyTemplate "templates/default.html" postCtx
                 >>= relativizeUrls
