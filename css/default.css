@@ -92,13 +92,20 @@ header div>* {
 }
 
 @media screen and (max-width: 900px) {
-  #presentation {
-    display: flex;
+  #presentation-points {
+    flex-direction: column;
+  }
+  #working-on {
     flex-direction: column;
   }
 
   .mobile-hidden {
     display: none;
+  }
+  #working-on div {
+    flex: 1 1 0px;
+    padding: 1em;
+    padding-top: 0;
   }
 }
 
