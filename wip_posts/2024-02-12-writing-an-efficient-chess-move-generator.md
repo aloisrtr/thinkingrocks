@@ -12,29 +12,39 @@ point for me before.
 ## What's a game representation? Why do we care?
 Chess engines (and many board game bots) can be separated into three core components:
 
-- game representation, responsible for encoding game state and actions from one state to another.
-- search algorithms to find the best action given a game state.
-- evaluation, heuristics to guess the probabilities of winning when we're in a certain state.
+- **game representation**, responsible for encoding game state and actions from one state to another.
+- **search algorithms** to find the best action given a game state.
+- **evaluation**, heuristics to guess the probabilities of winning when we're in a certain state.
 
 If you've got some knowledge about computer science, a game representation can be thought of
-as a really really big graph where states are linked to each other if an action from state A can
-transform it into state B.
+as a really really big directed graphs with an edge from state A to B is there is
+an action that can transform A into B when applied.
 
-> Games are often really, **really** big, too big to fit into memory, which is why we define the graph *implicitly*.
+![A really tiny subset of the chess game graph](/files/writing-an-efficient-game-representation-for-chess/chess_tree.png){ height=10% }
 
-Game representation is a bit of a sore spot for me. To put it bluntly, it can break
-**but not make** your engine. A bad game representation leads to really poor performance,
+> Games are often really, **really** big, too big to fit into memory, which is 
+> why we define the graph *implicitly*.
+>
+> Some games like tic-tac-toe are small enough to represent entirely in memory, but
+> since chess has more legal positions than there are atoms in the observable universe,
+> we might want to avoid trying to do that.
+
+Game representation is a bit of a sore spot for me. To put it bluntly, it can **break
+but not make** your engine. 
+
+A bad game representation leads to really poor performance,
 yet a good one does not make your engine inherently stronger. This imbalance is caused by the fact
 that you rely on game representation to traverse game states, so it need to be
-at least really really efficient. But you also want to avoid traversing the tree too much,
+**at least really really efficient**. But you also want to avoid traversing the tree too much,
 so the stronger your engine becomes, the less game representation speed is relevant.
 
-Writing an efficient and correct game representation is **important**, and there
+Writing an efficient and correct game representation is still **necessary**, and there
 aren't a ton of detailled tutorials on how to do so. Let's fix that!
 
-> The [chess programming wiki](https://www.chessprogramming.org) offers a lot of information on various techniques used, and in great detail!
+> The [chess programming wiki](https://www.chessprogramming.org) offers a lot of 
+> information on various techniques used, and in great detail!
 >
-> It just lacks the "put it all together" part.
+> It just lacks the "put it all together" part most of the time.
 
 ## Ok, what do we need?
 A good first question indeed: what information do we need to store?
@@ -46,7 +56,9 @@ A chess position is represented by:
 - [castling rights](https://en.wikipedia.org/wiki/Castling).
 - [en passant](https://en.wikipedia.org/wiki/En_passant) target square.
 
-> There are also a few more metadata fields needed, like keeping track of [repetitions](https://en.wikipedia.org/wiki/Threefold_repetition) or the [fifty-move rule](https://en.wikipedia.org/wiki/Fifty-move_rule), but they're not that relevant here.
+> There are also a few more metadata fields needed, like keeping track of 
+> [repetitions](https://en.wikipedia.org/wiki/Threefold_repetition) or the 
+> [fifty-move rule](https://en.wikipedia.org/wiki/Fifty-move_rule), but they're not that relevant here.
 
 We also need to know **how** these informations will be used. Actions in chess are moves. We need
 to be able to know which moves we can make, and how to modify the position's data to go
@@ -60,26 +72,30 @@ These will be our three main functions:
 
 > We could choose to generate **pseudo-legal moves**, which follow the rules of chess, but might leave the king in check.
 >
-> Those moves are invalid, which means that we need to check whether they leave the king in check after making them instead of during move generation.
+> Those moves are invalid, which means that we need to check whether they leave 
+> the king in check after making them and undoing the move if it's the case.
 >
-> Most of the time, this tradeoff is **not worth it**, so we'll generate only legal moves.
+> Most of the time, this is **slower** than embedding more checks into the move generation code, 
+> so we'll generate only legal moves.
 
 ## Encoding our chess board
-I'll be keeping this part brief: **try to compress your representation**.
+I'll be keeping this part brief: **try to compress your representation**. Using 
+the cache efficiently is incredibly important for chess engines.
 
-Using the cache efficiently is incredibly important for chess engines.
+Applying this, here's a good and pretty standard way to store moves and piece types:
 
-For reference, piece codes are kept a byte in size, moves are two bytes.
+![Encoding for pieces and moves](/files/writing-an-efficient-game-representation-for-chess/encoding_pieces.png){ height=20% }
+
 
 As for the actual board, there are two ways to go about it: **piece** or **square** centric.
 The former keeps information of where pieces are, while the latter
 keeps information of what is on a given square.
 
-![Diagram comparing piece and square centric representations](/files/writing-an-efficient-game-representation-for-chess/square_piece.png){ width=30% }
+![Diagram comparing piece and square centric representations](/files/writing-an-efficient-game-representation-for-chess/square_piece.png){ height=30% }
 
-**Piece centric** representations are faster when iterating over pieces (in move generation
+- **Piece centric** representations are faster when iterating over pieces (in move generation
 for example) because they avoid constantly checking "is there even a piece here?".
-**Square centric** representations are faster at answering "which piece is on this square?",
+- **Square centric** representations are faster at answering "which piece is on this square?",
 which can be useful when making and unmaking moves.
 
 Therefore, most engines nowadays say... **"why not both?"**. This wastes a bit of
@@ -103,10 +119,50 @@ For example, say we want to get a bitboard of white pawns. Well, this translates
 ```rust
 let white_pawn_bitboard = pawn_bitboard & white_bitboard
 ```
-![Bitboard usage example](/files/writing-an-efficient-game-representation-for-chess/bitboard_example.png){ width=60% }
+![Bitboard usage example](/files/writing-an-efficient-game-representation-for-chess/bitboard_example.png){ height=60% }
 
 This becomes particularily useful when applying shifts, or filtering attackable/movable
 squares, as we'll see in a minute.
+
+An important idea of bitboards is **serializing**. When we get a bitboard of target
+squares, we cannot transform it into a list of moves directly. We first need to
+**extract the information** of which squares are set. 
+
+The main way to do it is to find the lowest set bit of the bitboard, then resetting
+said bit. Keep going until the bitboard is empty and **boom**, a list of indices of
+set bits! Yay!
+
+Here's what this would look like in crude pseudo-code:
+```rust
+fn serialize(bitboard: Bitboard) -> Vec<Square> {
+  let mut indices = vec![];
+  while !bitboard.is_empty() {
+    let square = bitboard.pop_lowest_square();
+    bitboard.reset_lowest_square();
+    indices.push(square);
+  }
+  indices
+}
+```
+
+In reality, a better way to implement this is as an iterator, which would look like
+this in Rust:
+```rust
+impl Iterator for Bitboard {
+  type Item = Square;
+  fn next(&mut self) -> Option<Square> {
+    if self.is_empty() {
+      None // If the board is empty, we stop
+    } else {
+      let square = bitboard.trailing_zeros(); // Same as finding the lowest set bit
+      bitboard &= bitboard - 1; // Efficiently reset the lowest set bit
+      Some(square)
+    }
+  }
+}
+```
+We can now iterate over set square on our bitboard, which is useful for applying all
+kinds of transformations!
 
 ## Generating moves
 Now we move on to the interesting part: **how can we use that to generate moves?** I'll first present general techniques without caring about legality. We'll handle that afterwards!
@@ -124,7 +180,7 @@ We can than generate pawn moves by **shifting the entire bitboard** in different
 ![We shift the bitboard in the north direction, moving all bits to the next rank. This represents our pawn pushes!](/files/writing-an-efficient-game-representation-for-chess/shift_example.png){ width=50% }
 
 However, we're not done here: what if there are already pieces on the squares we want to
-get to? Pawns can't capture by moving forward!
+get to? **Pawns can't capture by moving forward!**
 
 Well, we can mask this `pawn_pushes_bitboard` by an `empty` bitboard that contains
 set bits wherever there are no pieces. This bitboard can be obtained by negating the union
@@ -132,9 +188,9 @@ of our two color bitboards, pretty neat!
 
 ![Taking an arbitraty empty bitboard, here's what would happen.](/files/writing-an-efficient-game-representation-for-chess/blockers_example.png){ width=60% }
 
-I'm not going to detail more than this here, but the same ideas can be applied
+I'm not going to detail everything here, but the same ideas can be applied
 for all pawn movements. You generate a set of potential target squares, then mask
-it by squares that can actually be moved to (empty ones for pushes, enemy pieces for captures, etc).
+it by squares that can actually be moved to (empty ones for pushes, enemy pieces for captures, en passant target for en passant captures, etc).
 
 ### Knights and kings
 Knights and kings are different from pawns: there are a looot of deltas that can be applied,
@@ -149,7 +205,7 @@ let knight_moves = KNIGHT_LOOKUP[Square::D5];
 
 ![Example of knight moves from the d5 square.](/files/writing-an-efficient-game-representation-for-chess/lookup_knight.png){ width=20% }
 
-There's not much going on for knights and kings appart from that, they're pretty simple!
+There's not much going on for knights and kings (*for now*) appart from that, they're pretty simple!
 
 ### Sliding pieces
 *Uh oh...*
@@ -164,13 +220,13 @@ There are two (main) ways to go about things:
 - calculating the attacks using fill algorithms on bitboards ([Dumb7Fill](https://www.chessprogramming.org/Dumb7Fill), [Kogge-Stone](https://www.chessprogramming.org/Kogge-Stone_Algorithm) or [Fill by subtraction](https://www.chessprogramming.org/Fill_by_Subtraction) are good examples).
 - creating lookup tables indexed by square **and blockers**.
 
-We'll be focusing on the latter since it is really often faster, albeit a bit more involved than
-"filling until we hit a piece". More precisely, we'll be looking at [magic bitboard](https://www.chessprogramming.org/Magic_Bitboards).
+We'll be focusing on the latter since it is often faster on modern CPUs with big caches. 
+More precisely, we'll be looking at [magic bitboard](https://www.chessprogramming.org/Magic_Bitboards).
 
 > There are other ways to create lookup tables, which I'll mention briefly:
 >
 > - [rotated bitboards](https://www.chessprogramming.org/Rotated_Bitboards) cover line attacks only, and require additionnal bitboards updated incrementally to work efficiently.
-> - [kindergarten bitboard](https://www.chessprogramming.org/Kindergarten_Bitboards) are more efficient, but require some calculation. They are a good middle ground between pure lookup and pure calculation!
+> - [kindergarten bitboard](https://www.chessprogramming.org/Kindergarten_Bitboards) require some more calculation. They are a good middle ground between pure lookup and pure calculation!
 >
 > The main advantage of magic bitboards is that they cover rook and bishop attacks (two lines)
 > at once rather than a single line each time.
@@ -188,12 +244,12 @@ simplified our search quite a bit!
 
 ![Computing relevant blockers for a bishop on c4.](/files/writing-an-efficient-game-representation-for-chess/relevant_blockers.png){ width=60% }
 
-Now, we've got a little problem... How do we transform our relevant blockers into a unique key?
+Now, we've got a little problem... *how do we transform our relevant blockers into a unique key?*
 
 Well, folks, I present to you the solution to any complex problem: **brute-force!**
 
 Yup, you've heard that right, what we're going to find is a **magic number** (thus the name)
-that, when multiplied with our bitboard and then shifted by a number of bits $n$,
+that, when multiplied with our bitboard and then shifted by a number of bits $n$ (often the number of relevant blockers)
 perfectly maps blockers to the correct set of attacked square.
 
 There is a [great article by Analog Hors](https://analog-hors.github.io/site/magic-bitboards/) on
@@ -205,6 +261,10 @@ returns the squares attacked by a bishop/rook on said origin square.
 > specific hardware instructions](https://www.chessprogramming.org/BMI2#PEXTBitboards),
 > others are implemented using more advanced hashing functions. 
 >
+> There are also improvements to be made on **magic numbers themselves**. There is
+> an ongoing effort to [find magic numbers requiring less bits](https://www.chessprogramming.org/Best_Magics_so_far),
+> which reduces the space required to store our informations.
+>
 > As mentionned before, small gains get more and more negligeable past a certain point.
 > Magic bitboards are more than sufficient for now, and the small improvements granted
 > by more advanced implementations tend to get negligeable within an engine, so I won't
@@ -213,6 +273,28 @@ returns the squares attacked by a bishop/rook on said origin square.
 > Still, it's a depply interesting ~rabbit hole~ topic to dive into if you've got
 > time to dedicate to it! Maybe you could be the one to find better magic numbers
 > for some origin square?
+
+So how do we use this? Well, similar to knights and kings, we iterate over all
+sliding pieces and lookup what moves they can make!
+
+A quick heads up: it is faster to separate between **diagonal sliders** (bishops and queens)
+and **orthogonal sliders** (rooks and queens). This way, our lookups are easier to encode.
+
+```rust
+// Iterate over our bishops and queens
+for origin in diagonal_sliders {
+  // Lookup our moves from the magic table
+  let moves = get_diagonal_moves(origin, !empty);
+
+  // Then generate captures and quiet moves
+  for target in moves & ennemy_pieces {
+    // Some move encoding stuff for captures
+  }
+  for target in moves & empty {
+    // Some move encoding for quiet moves
+  }
+}
+```
 
 ### "That was an illegal left by the way"
 Okay, okay, let's make sure our moves are legal now!
@@ -227,10 +309,13 @@ Well, there are a few:
 - in general, king moves to attacked squares.
 - castling over attacked squares.
 
+![Some situations that create illegal moves (in red)](/files/writing-an-efficient-game-representation-for-chess/illegal_moves.png){ width=60% }
+
 *Phew*, okay, how do we deal with that?
 
 #### Pins, checks and attacks
 Three informations are clearly of importance here:
+
 - whether the king is in check, and if so, does more than one piece attack it?
 - which pieces are pinned, and where can they move?
 - which squares are attacked?
@@ -239,6 +324,7 @@ This all depends on moves that the ennemy pieces can make! We don't want to gene
 every move for every ennemy piece tho, that would just double our workload and is unnecessary.
 
 What we'll do instead is compute three bitboards:
+
 - attacked squares.
 - checking piece(s).
 - pieces of the moving side which are not pinned.
@@ -246,12 +332,32 @@ What we'll do instead is compute three bitboards:
 This is done by generating attack targets (not actual moves, the distinction is important)
 for all ennemy pieces.
 
+> Some game representations separate the routine of **detecting pins**, **generating moves
+> for pinned pieces** and **generating attacked squares**.
+>
+> Most of the time, it is more efficient to do all three in one pass, since they all
+> reuse information from one another. It is less readable and more error prone, but
+> worth it in the end!
+
 Pawns, knights and kings cannot create pins. This makes it easier to deal with them:
 just generate their attack targets and add them to the bitboard of attacked squares.
+```rust
+attacked_squares |= KING_LOOKUP[ennemy_king];
+for knight in ennemy_knights {
+  attacked_squares |= KNIGHT_LOOKUP[knight];
+}
+// Same for pawns
+```
 
 If at this point the attack bitboard intersects with our king bitboard, we're in check!
 We generate attacks from our king, and intersect them with ennemy pawns/knights, then add
 the result to the checking pieces' bitboard.
+```rust
+if attacked_squares & allied_king {
+  checkers |= KNIGHT_LOOKUP[allied_king] & ennemy_knights;
+  // Same for pawns
+}
+```
 
 > I've left out the ennemy king in that last part. The reason is that it cannot ever
 > check our own king, otherwise we'd already be in an illegal position.
@@ -279,3 +385,131 @@ allied pieces**, then intersecting this bitboard with corresponding ennemy slide
 (bishops and queens for diagonal attacks, rooks and queens for orthogonal attacks).
 
 If this intersection is not empty,
+
+#### Adapting the rest of move generation
+
+## General performance tips
+Sadly, this last "implementation" section will be reaaaally specific to Rust, since that's the language
+I'm using to implement this move generator. Still, you might find ways to apply those
+tips in other languages!
+
+### Generic functions
+Move generation is dependant on which side is currently moving. Things like the
+directions pawns move towards, ennemy pieces, etc.
+
+You could do all of that with a bunch of `if`{.rust} statements and pray that the
+branch prediction gods are on your side (they often are), but a little nudge in the
+right direction certainly helps!
+
+One way to do so is to pack two side-specific functions (one for white, one for black)
+and choose between them at the start of move generation. Writing two functions is
+just a way to ~create more bugs~ duplicate logic, so we instead use Rust's **const generics**.
+
+```rust
+fn moves(&self) -> Vec<Move> {
+  fn moves_generic<const BLACK_TO_MOVE: bool>(position: &Position) -> Vec<Move> {
+    // Logic goes here
+  }
+
+  if self.black_to_move {
+    moves_generic::<true>(self)
+  } else {
+    moves_generic::<false>(self)
+  }
+}
+```
+
+You can then use the `BLACK_TO_MOVE`{.rust} constant within the inner function, and
+Rust will actually generate the two specific functions during compilation!
+
+### Trust our benevolent branch predictor
+Going the exact opposite of what has been said above: trust branch prediction!
+
+If you have work that is tedious and unlikely to be required, **put it in a branch**.
+Generic functions can only go so far, and there are some things that cannot be known
+statically.
+
+For example, querying the magic bitboards a second time to generate rays for pinned pieces
+is unlikely to be necessary. Putting it under a conditional saves time!
+
+### Iterators! Trust me, they're optimized
+When serializing moves, you might want to use iterators **a lot**. More notably the
+`extend`{.rust} function, which lets you add the elements of an iterator in a collection all at once.
+
+The advantage over a for loop is that if you know the size of your iterator (as we do
+here, since we can just call `count_ones` on our bitboards of target squares), the collection
+will grow only once, and then everything will be pushed without incrementing the
+lenght each time.
+
+> This information is given to the compiler by implementing the 
+> [`ExactSizeIterator`{.rust}](https://doc.rust-lang.org/std/iter/trait.ExactSizeIterator.html)
+> trait.
+
+Basically, it allows you to do everything in a batch! This saves a bunch of precious
+operations during move generation.
+
+Generally speaking, Rust's iterators are **really optimal**, so
+it's always a good idea to rewrite for loops using them to see if it improves your
+performance.
+
+> The "checking" part is thoroughly important, and I cannot emphesize this enough!
+> Sometimes, for loops are faster, you can't know unless you try and benchmark the change.
+>
+> For example, `chain`{.rust} or `flat_map`{.rust} make performance worse, because 
+> they never implement the `ExactSizeIterator`{.rust} trait that our optimization relies on!
+
+## So, is this even correct?
+Welp, I'm a computer scientist at heart so my answer will be: **I don't know**... but
+I can still be **highly confident** that **it is correct**!
+
+The main method of testing for move game representations is [perft](https://www.chessprogramming.org/Perft).
+The idea is to walk the game tree, counting how many nodes are accessible up to a certain
+depth. [Results for chess](https://www.chessprogramming.org/Perft_Results) have been
+thoroughly discussed and validated by many many people, so we can be pretty confident that
+they are correct.
+
+Thus, we simply have to check that our game representation outputs the same number
+of reachable positions! Easy!
+
+> The reason I'm saying that I'm not certain that my game representation is correct
+> is because those results aren't in any way proven.
+>
+> One way to be absolutely certain, 100%, that those numbers are correct would be to
+> create a [formally verified](https://en.wikipedia.org/wiki/Formal_verification)
+> game representation using tools like [Coq](https://coq.inria.fr/) or [Agda](https://hackage.haskell.org/package/Agda). 
+> This could be a fun project someday, but it waaaaay out of the
+> scope of this already too long post!
+
+Aaaand... guess what? It seems we're good to go!
+
+## And how fast is it? Three fasts? FOUR FASTS???
+Perft is also a good way to compare the speed of game representations, since it
+makes use of every function we've defined so far!
+
+We'll make a little contest, comparing my game representation to 
+[QPerft](https://home.hccnet.nl/h.g.muller/dwnldpage.html) and [Stockfish](https://stockfishchess.org/).
+The former uses a square-centric board representation and is deemed the baseline against
+which most engines compare their game representation, while the latter is, well, **Stockfish**.
+
+> Please note that while QPerft is designed specifically for move generation and
+> perft, Stockfish has other problems to deal with.
+>
+> Notably, it likely provides more information about moves, game state, etc to help
+> alleviate some costs from the rest of the engine. This might slow it down a bit in
+> perft, but hey, at least it can actually play chess games *half-decently*.
+>
+> It's only the best rated chess engine out there after all!
+
+So there we go! My little game representation is faster than QPerft on average.
+
+## What's next?
+We've got ourselves a **really nice** game representation, so there are only two
+things left to do:
+- use it in an actual, complete chess engine (notably embedding it into `chameleon`, a general game playing framework that I'm developping on the side).
+- procrastinate by implementing more complex magic bitboards schemes, since [shared attacks](https://www.chessprogramming.org/Magic_Bitboards#Sharing_Attacks) look really juicy.
+- work on actual school projects that are mandatory and on which my future depends (least likely).
+
+Anyway, as a thanks for reading this loooooong post, here's [the repository](https://github.com/aloisrtr/chameleon-chess) 
+where all of the actual code lives!
+
+See ya!

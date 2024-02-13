@@ -95,6 +95,7 @@ header div>* {
   #presentation-points {
     flex-direction: column;
   }
+
   #working-on {
     flex-direction: column;
   }
@@ -102,6 +103,7 @@ header div>* {
   .mobile-hidden {
     display: none;
   }
+
   #working-on div {
     flex: 1 1 0px;
     padding: 1em;
@@ -193,5 +195,7 @@ figure {
 }
 
 figure>* {
-  margin: auto
+  margin: auto;
+  max-width: 80vw;
+  max-height: 50vh;
 }
