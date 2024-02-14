@@ -95,6 +95,7 @@ header div>* {
   #presentation-points {
     flex-direction: column;
   }
+
   #working-on {
     flex-direction: column;
   }
@@ -102,6 +103,7 @@ header div>* {
   .mobile-hidden {
     display: none;
   }
+
   #working-on div {
     flex: 1 1 0px;
     padding: 1em;
