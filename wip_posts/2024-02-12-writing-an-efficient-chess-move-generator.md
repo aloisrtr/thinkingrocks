@@ -23,7 +23,7 @@ If you've got some knowledge about computer science, a game representation can b
 as a really really big directed graphs with an edge from state A to B is there is
 an action that can transform A into B when applied.
 
-![A really tiny subset of the chess game graph](/files/writing-an-efficient-game-representation-for-chess/chess_tree.png){ height=10% }
+![A really tiny subset of the chess game graph](/files/writing-an-efficient-game-representation-for-chess/chess_tree.png){ max-height=40em }
 
 > Games are often really, **really** big, too big to fit into memory, which is 
 > why we define the graph *implicitly*.
@@ -87,14 +87,15 @@ the cache efficiently is incredibly important for chess engines.
 
 Applying this, here's a good and pretty standard way to store moves and piece types:
 
-![Encoding for pieces and moves](/files/writing-an-efficient-game-representation-for-chess/encoding_pieces.png){ height=20% }
+![Encoding for pieces and moves](/files/writing-an-efficient-game-representation-for-chess/encoding_pieces.png){ max-height=20em }
 
+> The "flags" part of the move encoding is taken straight from [this page](https://www.chessprogramming.org/Encoding_Moves)
 
 As for the actual board, there are two ways to go about it: **piece** or **square** centric.
 The former keeps information of where pieces are, while the latter
 keeps information of what is on a given square.
 
-![Diagram comparing piece and square centric representations](/files/writing-an-efficient-game-representation-for-chess/square_piece.png){ height=30% }
+![Diagram comparing piece and square centric representations](/files/writing-an-efficient-game-representation-for-chess/square_piece.png){ max-height=15em }
 
 - **Piece centric** representations are faster when iterating over pieces (in move generation
 for example) because they avoid constantly checking "is there even a piece here?".
@@ -122,7 +123,7 @@ For example, say we want to get a bitboard of white pawns. Well, this translates
 ```rust
 let white_pawn_bitboard = pawn_bitboard & white_bitboard
 ```
-![Bitboard usage example](/files/writing-an-efficient-game-representation-for-chess/bitboard_example.png){ height=60% }
+![Bitboard usage example](/files/writing-an-efficient-game-representation-for-chess/bitboard_example.png){ max-height=30em }
 
 This becomes particularily useful when applying shifts, or filtering attackable/movable
 squares, as we'll see in a minute.
@@ -180,7 +181,7 @@ let pawns = pawns ^ promoting_pawns;
 ```
 We can than generate pawn moves by **shifting the entire bitboard** in different directions.
 
-![We shift the bitboard in the north direction, moving all bits to the next rank. This represents our pawn pushes!](/files/writing-an-efficient-game-representation-for-chess/shift_example.png){ width=50% }
+![We shift the bitboard in the north direction, moving all bits to the next rank. This represents our pawn pushes!](/files/writing-an-efficient-game-representation-for-chess/shift_example.png){ max-height=20em }
 
 However, we're not done here: what if there are already pieces on the squares we want to
 get to? **Pawns can't capture by moving forward!**
@@ -189,7 +190,7 @@ Well, we can mask this `pawn_pushes_bitboard` by an `empty` bitboard that contai
 set bits wherever there are no pieces. This bitboard can be obtained by negating the union
 of our two color bitboards, pretty neat!
 
-![Taking an arbitraty empty bitboard, here's what would happen.](/files/writing-an-efficient-game-representation-for-chess/blockers_example.png){ width=60% }
+![Taking an arbitraty empty bitboard, here's what would happen.](/files/writing-an-efficient-game-representation-for-chess/blockers_example.png){ max-height=20em }
 
 I'm not going to detail everything here, but the same ideas can be applied
 for all pawn movements. You generate a set of potential target squares, then mask
@@ -206,7 +207,7 @@ We could then access the moves for a knight on d5 this way:
 let knight_moves = KNIGHT_LOOKUP[Square::D5];
 ```
 
-![Example of knight moves from the d5 square.](/files/writing-an-efficient-game-representation-for-chess/lookup_knight.png){ width=20% }
+![Example of knight moves from the d5 square.](/files/writing-an-efficient-game-representation-for-chess/lookup_knight.png){ max-height=20em }
 
 There's not much going on for knights and kings (*for now*) appart from that, they're pretty simple!
 
@@ -245,7 +246,7 @@ anyway.
 What we want is, once again, to **mask relevant blockers** and use this as a key. Already, we've
 simplified our search quite a bit!
 
-![Computing relevant blockers for a bishop on c4.](/files/writing-an-efficient-game-representation-for-chess/relevant_blockers.png){ width=60% }
+![Computing relevant blockers for a bishop on c4.](/files/writing-an-efficient-game-representation-for-chess/relevant_blockers.png){ max-height=40em }
 
 Now, we've got a little problem... *how do we transform our relevant blockers into a unique key?*
 
@@ -287,7 +288,7 @@ and **orthogonal sliders** (rooks and queens). This way, our lookups are easier 
 // Iterate over our bishops and queens
 for origin in diagonal_sliders {
   // Lookup our moves from the magic table
-  let moves = get_diagonal_moves(origin, !empty);
+  let moves = diagonal_moves(origin, !empty);
 
   // Then generate captures and quiet moves
   for target in moves & ennemy_pieces {
@@ -312,7 +313,7 @@ Well, there are a few:
 - in general, king moves to attacked squares.
 - castling over attacked squares.
 
-![Some situations that create illegal moves (in red)](/files/writing-an-efficient-game-representation-for-chess/illegal_moves.png){ width=60% }
+![Some situations that create illegal moves (in red)](/files/writing-an-efficient-game-representation-for-chess/illegal_moves.png){ max-height=20em }
 
 *Phew*, okay, how do we deal with that?
 
@@ -367,10 +368,10 @@ if attacked_squares & allied_king {
 
 Now we get to the fun part: **sliders**.
 
-First, the attack bitboard. One may think that simply reusing our magic bitboards would
-work, but this leads to a sneaky bug: **our king is considered to be a blocker**.
+First, the attack bitboard. One may think that simply looking up magic bitboards as
+we usually do would work, but this leads to a sneaky bug: **our king could slide away from a check**.
 
-![Example where using the king as a blocker is incorrect: we could generate a move to the north, which would still leave us in check.](/files/writing-an-efficient-game-representation-for-chess/slide_away.png){ width=50% }
+![Example where using the king as a blocker is incorrect: we could generate a move to the north, which would still leave us in check.](/files/writing-an-efficient-game-representation-for-chess/slide_away.png){ max-height=20em }
 
 > You might notice that some squares here are not *actually attacked*. So is our attack bitboard
 > wrong?
@@ -379,17 +380,105 @@ work, but this leads to a sneaky bug: **our king is considered to be a blocker**
 > But we're only interested in squares our king cannot move to **or** squares that we cannot
 > castle through. Here, both are valid.
 
-Our attack map is now correctly generated: yay!
+Other than that, generating the attack map has no weird intricacies, so we're done here:
+```rust
+// Example for diagonal sliders
+for origin in diagonal_sliders {
+  attacked_squares |= diagonal_moves(origin, blockers & !king);
+  // (rest of the code for handling pins and checks...)
+}
+```
 
-What about pins tho? How do we deal with those?
+But, as we said above, we want to generate moves for pinned pieces and detect checks
+while we have this attack information as well!
 
-What we'll do is generate sliding attacks **originating from our king** and **ignoring
-allied pieces**, then intersecting this bitboard with corresponding ennemy sliders 
-(bishops and queens for diagonal attacks, rooks and queens for orthogonal attacks).
+Checks are easy to detect: we just need to assert whether the attack rays intersect
+with our king. If it does, bing bong, you're in check! The piece is added to the bitboard of
+checkers as usual.
 
-If this intersection is not empty,
+On top of that, we generate a ray along which our pieces can move
+to block the check. The way I do it is by generating corresponding slider moves **originating
+from our king** and **bypassing our pieces**. The intersection of those attacks and the
+attacking piece moves will give us our attack ray!
+
+![]()
+
+This ray from our king can **also be used to detect pins**. If the king attack intersects
+with a corresponding ennemy slider 
+
 
 #### Adapting the rest of move generation
+Let's sum up the modifications we made. We have access to:
+
+- a bitboard of allied pieces which are not pinned.
+- a bitboard of checking pieces.
+- a set of squares that pieces can move to.
+- a bitboard of attacked squares.
+
+First, we'll differentiate between our 3 cases: the king can be in **single check**, **double check**, or **not attacked**.
+We can find this information by counting the number of checking pieces.
+
+- if there are no checkers, we change the set of squares that pieces can move to to be empty squares, and change the set of squares we can capture to squares where there are ennemy pieces. We also generate castling moves if applicable.
+- if there is at least one checker, we need to clear up potential pinned piece moves generated previously since they are not legal anymore.
+- past two checking pieces, we skip generating moves for general pieces and only generate king moves.
+
+```rust
+let checkers_count = checkers.count_ones();
+if checkers_count == 0 {
+  // Change our quiet moves and captures targets.
+  movable = empty_squares;
+  capturable = ennemy_pieces;
+  // Generate castling moves.
+  generate_castling_moves();
+} else {
+  // Clear up previously generated moves for pinned pieces.
+  moves.clear()
+}
+
+if checkers_count < 2 {
+  // Generate moves for other pieces
+}
+
+// Generate king moves
+let king_moves = KING_LOOKUP[king_square] & !attacked_squares;
+// ...
+```
+
+The only thing that changes for the king is that we mask its potential moves not only
+with the usual empty squares/ennemy pieces, but also by **`!attacked_squares`{.rust}**
+
+#### Problem: en passant discovered check
+Remember this problematic position?
+
+![]()
+
+Well, it's time to deal with it now! We'll also take time to actually deal with en passant
+captures after delaying that for most of this post.
+
+> En passant captures are hell and I despise them from the bottom of my heart. Chess
+> is generally pretty smooth when it comes to its rules, and then they throw this random,
+> once in a blue moon move that is hard to deal with when programming!
+
+Our main problem is the fact that capturing en passant can **discover a check on the king** even
+tho the pawn isn't pinned!
+
+The advantage of en passant tho is that it is **extremely rare**, so generating en passant
+moves a bit slowly is not that bad and we can focus on correctness.
+
+What we need to do is identify the captured square, the capturer, and check if an orthogonal
+ray from our king following the rank the en passant capture happens on, removing both
+the captured and capturer from the blockers bitboard, reaches a queen or rook.
+
+> At first, I had an additionnal check for discovered checks from bishops, in such positions
+> for example:
+>
+> ![Capturing the pawn en passant would discover an attack on our king! Oh... no?](/files/writing-an-efficient-game-representation-for-chess/non_problem.png){ max-height=20em }
+>
+> In reality, such positions **cannot happen after a series of legal moves**. The reason is that
+> there are only two ways we can get into such a position:
+> 
+> - either the pawn just moved, and therefore the bishop was already checking our king, which cannot be legal.
+> - or the bishop just moved, and therefore the pawn cannot be captured en passant anymore.
 
 ## General performance tips
 Sadly, this last "implementation" section will be reaaaally specific to Rust, since that's the language
@@ -465,7 +554,7 @@ performance.
 Welp, I'm a computer scientist at heart so my answer will be: **I don't know**... but
 I can still be **highly confident** that **it is correct**!
 
-The main method of testing for move game representations is [perft](https://www.chessprogramming.org/Perft).
+The main method of testing for game representations is [perft](https://www.chessprogramming.org/Perft).
 The idea is to walk the game tree, counting how many nodes are accessible up to a certain
 depth. [Results for chess](https://www.chessprogramming.org/Perft_Results) have been
 thoroughly discussed and validated by many many people, so we can be pretty confident that
@@ -485,6 +574,30 @@ of reachable positions! Easy!
 
 Aaaand... guess what? It seems we're good to go!
 
+```sh
+~/D/chameleon-chess > target/release/perft -bip 8
+r n b q k b n r
+p p p p p p p p
+. . . . . . . . side to move: white
+. . . . . . . . reversible moves: 0
+. . . . . . . . en passant: -
+. . . . . . . . castling rights: KQkq
+P P P P P P P P hash: 0x1f5ca3327330cf5e
+R N B Q K B N R
+
+depth 1: 20 nodes
+depth 2: 400 nodes
+depth 3: 8902 nodes
+depth 4: 197281 nodes
+depth 5: 4865609 nodes
+depth 6: 119060324 nodes
+depth 7: 3195901860 nodes
+depth 8: 84998978956 nodes
+```
+
+> I've tested the code on [other positions](https://www.chessprogramming.org/Perft_Results) as well,
+> with all positions correct up to decent depths!
+
 ## And how fast is it? Three fasts? FOUR FASTS???
 Perft is also a good way to compare the speed of game representations, since it
 makes use of every function we've defined so far!
@@ -503,14 +616,32 @@ which most engines compare their game representation, while the latter is, well,
 >
 > It's only the best rated chess engine out there after all!
 
-So there we go! My little game representation is faster than QPerft on average.
+For reference, the benchmarking setup involved running each of the usual perft positions on
+each competing program. This is done using [hyperfine](https://github.com/sharkdp/hyperfine). 
+The code ran on an AMD Ryzen 5 5500U, in single core perft with bulk-counting. 
+
+**Here are the fabled results:**
+| program / position (depth) | **start (7)**     | **kiwipete (6)**  | **endgame (8)**   | **mirrored (6)** | **talkchess (5)** | **alternative (7)** |
+|----------------------------|-------------------|-------------------|-------------------|------------------|-------------------|---------------------|
+| `chameleon-perft`          | 12.244s (261Mnps) | 24.005s (335Mnps) | 12.290s (245Mnps) | 2.058s (343Mnps)  | 0.269s (334Mnps) |
+| `qperft`                   | 12.598s (254Mnps) | 33.261s (242Mnps) | 23.447s (128Mnps) | 4.337s (163Mnps)  | 0.505s (178Mnps) |
+
+Damn, that's **pretty efficient!** We beat QPerft on every position!!! It's safe
+to say that our game representation is good enough at this point.
+
+> Note that this happens on **my specific** CPU, results may vary dependending on
+> architecture, instruction set, etc.
+>
+> This is especially true for bitboard representations, which rely on bit tricks
+> and lower level instructions. For example, if your CPU has a slow "trailing ones"
+> instruction (or none at all), bitboard serialization takes a serious hit!
 
 ## What's next?
-We've got ourselves a **really nice** game representation, so there are only two
-things left to do:
+We've got ourselves a **really nice** game representation, so there are only a few things left to do:
+
 - use it in an actual, complete chess engine (notably embedding it into `chameleon`, a general game playing framework that I'm developping on the side).
 - procrastinate by implementing more complex magic bitboards schemes, since [shared attacks](https://www.chessprogramming.org/Magic_Bitboards#Sharing_Attacks) look really juicy.
-- work on actual school projects that are mandatory and on which my future depends (least likely).
+- work on actual school projects that are mandatory and on which my future depends (*least likely*).
 
 Anyway, as a thanks for reading this loooooong post, here's [the repository](https://github.com/aloisrtr/chameleon-chess) 
 where all of the actual code lives!
