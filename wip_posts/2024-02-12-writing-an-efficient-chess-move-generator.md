@@ -275,8 +275,8 @@ returns the squares attacked by a bishop/rook on said origin square.
 > talk about them here.
 >
 > Still, it's a depply interesting ~rabbit hole~ topic to dive into if you've got
-> time to dedicate to it! Maybe you could be the one to find better magic numbers
-> for some origin square?
+> time to dedicate to it! Current magic numbers are [a bit wasteful](https://www.chessprogramming.org/Magic_Bitboards#Wishing_Dreams),
+> so maybe you'll be the one to find better ones, who knows?
 
 So how do we use this? Well, similar to knights and kings, we iterate over all
 sliding pieces and lookup what moves they can make!
@@ -401,11 +401,21 @@ to block the check. The way I do it is by generating corresponding slider moves 
 from our king** and **bypassing our pieces**. The intersection of those attacks and the
 attacking piece moves will give us our attack ray!
 
-![]()
+![The pin ray that we discover.](/files/writing-an-efficient-game-representation-for-chess/pin_ray.png){ max-height=20em }
 
 This ray from our king can **also be used to detect pins**. If the king attack intersects
-with a corresponding ennemy slider 
+with a corresponding ennemy slider, we simply need to count how many of our pieces
+intersect with the pin ray.
 
+> The additionnal lookups for crafting the actual ray **must be** guarded by a 
+> conditional! Otherwise, they can be pretty damn costly.
+
+If there is only one, it is pinned. At this point, we can generate moves **only if
+they target the pin ray**.
+
+We then must carefully remove the pinned piece from normal move generation. This is done
+by adding it to the pinned pieces bitboard, which we'll use as a mask over our pieces
+in the rest of the move generation.
 
 #### Adapting the rest of move generation
 Let's sum up the modifications we made. We have access to:
@@ -448,9 +458,7 @@ The only thing that changes for the king is that we mask its potential moves not
 with the usual empty squares/ennemy pieces, but also by **`!attacked_squares`{.rust}**
 
 #### Problem: en passant discovered check
-Remember this problematic position?
-
-![]()
+![Remember this problematic position?](/files/writing-an-efficient-game-representation-for-chess/pin.png){ max-height=20em }
 
 Well, it's time to deal with it now! We'll also take time to actually deal with en passant
 captures after delaying that for most of this post.
@@ -523,6 +531,14 @@ statically.
 
 For example, querying the magic bitboards a second time to generate rays for pinned pieces
 is unlikely to be necessary. Putting it under a conditional saves time!
+
+### Use the stack, dammit!
+Storing our generated moves in a `Vec<Move>`{.rust} is **sloooooooooow**... Thankfully,
+Rust provides some ~libraries~ crates for stack vectors (which are just fixed size arrays
+where not every element is initialized, adding some `push`{.rust} and other nice APIs).
+
+The example I'm using is called [arrayvec](https://docs.rs/arrayvec/latest/arrayvec/),
+allowing me to avoid recoding one myself. Yay, lazyness!
 
 ### Iterators! Trust me, they're optimized
 When serializing moves, you might want to use iterators **a lot**. More notably the
@@ -621,10 +637,11 @@ each competing program. This is done using [hyperfine](https://github.com/sharkd
 The code ran on an AMD Ryzen 5 5500U, in single core perft with bulk-counting. 
 
 **Here are the fabled results:**
-| program / position (depth) | **start (7)**     | **kiwipete (6)**  | **endgame (8)**   | **mirrored (6)** | **talkchess (5)** | **alternative (7)** |
-|----------------------------|-------------------|-------------------|-------------------|------------------|-------------------|---------------------|
-| `chameleon-perft`          | 12.244s (261Mnps) | 24.005s (335Mnps) | 12.290s (245Mnps) | 2.058s (343Mnps)  | 0.269s (334Mnps) |
-| `qperft`                   | 12.598s (254Mnps) | 33.261s (242Mnps) | 23.447s (128Mnps) | 4.337s (163Mnps)  | 0.505s (178Mnps) |
+
+|                       | **start** (7)     | **kiwipete** (6)  | **endgame** (8)   | **mirrored** (6) | **talkchess** (5) | **alternative** (7) |
+|:---------------------:|:-----------------:|:-----------------:|:-----------------:|:----------------:|:-----------------:|:-------------------:|
+| **`chameleon-perft`** | 12.244s (261Mnps) | 24.005s (335Mnps) | 12.290s (245Mnps) | 2.058s (343Mnps) | 0.269s (334Mnps)  | nothing yet         |
+| **`qperft`**          | 12.598s (254Mnps) | 33.261s (242Mnps) | 23.447s (128Mnps) | 4.337s (163Mnps) | 0.505s (178Mnps)  | nothing yet         |
 
 Damn, that's **pretty efficient!** We beat QPerft on every position!!! It's safe
 to say that our game representation is good enough at this point.
@@ -646,4 +663,4 @@ We've got ourselves a **really nice** game representation, so there are only a f
 Anyway, as a thanks for reading this loooooong post, here's [the repository](https://github.com/aloisrtr/chameleon-chess) 
 where all of the actual code lives!
 
-See ya!
+<p class="head center">See ya!</p>
