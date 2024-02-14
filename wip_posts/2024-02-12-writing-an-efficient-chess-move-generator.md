@@ -7,7 +7,10 @@ in the first place: chess programming.
 
 This is probably my third or fourth rewrite of [chameleon-chess](https://github.com/aloisrtr/chameleon-chess),
 except this time I'm pretty happy with the game representation, which was a huge blocking
-point for me before.
+point for me before. So, as always when I'm happy that something works, I'd like
+to write about how!
+
+<!--more-->
 
 ## What's a game representation? Why do we care?
 Chess engines (and many board game bots) can be separated into three core components:

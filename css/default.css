@@ -177,7 +177,7 @@ blockquote {
   border: 2px solid rgb(28, 27, 26);
   border-radius: 10px;
   background-color: rgb(40, 39, 38);
-  padding: 0.5em;
+  padding: 0.5em 1em 0.5em 1em;
 }
 
 code {
@@ -193,5 +193,6 @@ figure {
 }
 
 figure>* {
-  margin: auto
+  margin: auto;
+  max-width: 90vw
 }
