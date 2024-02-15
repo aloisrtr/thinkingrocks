@@ -8,7 +8,6 @@ html {
   left: 0;
   margin: 0;
   padding: 0;
-  overflow: hidden;
 }
 
 body {
@@ -197,7 +196,7 @@ figure {
 
 figure>* {
   margin: auto;
-  max-width: 90%;
+  max-width: fit-content;
 }
 
 table {

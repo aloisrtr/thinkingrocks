@@ -246,7 +246,7 @@ anyway.
 What we want is, once again, to **mask relevant blockers** and use this as a key. Already, we've
 simplified our search quite a bit!
 
-![Computing relevant blockers for a bishop on c4.](/files/writing-an-efficient-game-representation-for-chess/relevant_blockers.png){ max-height=40em }
+![Computing relevant blockers for a bishop on c4.](/files/writing-an-efficient-game-representation-for-chess/relevant_blockers.png){ height=40em }
 
 Now, we've got a little problem... *how do we transform our relevant blockers into a unique key?*
 
@@ -313,7 +313,7 @@ Well, there are a few:
 - in general, king moves to attacked squares.
 - castling over attacked squares.
 
-![Some situations that create illegal moves (in red)](/files/writing-an-efficient-game-representation-for-chess/illegal_moves.png){ max-height=20em }
+![Some situations that create illegal moves (in red)](/files/writing-an-efficient-game-representation-for-chess/illegal_moves.png){ height=20em }
 
 *Phew*, okay, how do we deal with that?
 
@@ -371,7 +371,7 @@ Now we get to the fun part: **sliders**.
 First, the attack bitboard. One may think that simply looking up magic bitboards as
 we usually do would work, but this leads to a sneaky bug: **our king could slide away from a check**.
 
-![Example where using the king as a blocker is incorrect: we could generate a move to the north, which would still leave us in check.](/files/writing-an-efficient-game-representation-for-chess/slide_away.png){ max-height=20em }
+![Example where using the king as a blocker is incorrect: we could generate a move to the north, which would still leave us in check.](/files/writing-an-efficient-game-representation-for-chess/slide_away.png){ height=20em }
 
 > You might notice that some squares here are not *actually attacked*. So is our attack bitboard
 > wrong?
@@ -401,7 +401,7 @@ to block the check. The way I do it is by generating corresponding slider moves 
 from our king** and **bypassing our pieces**. The intersection of those attacks and the
 attacking piece moves will give us our attack ray!
 
-![The pin ray that we discover.](/files/writing-an-efficient-game-representation-for-chess/pin_ray.png){ max-height=20em }
+![The pin ray that we discover.](/files/writing-an-efficient-game-representation-for-chess/pin_ray.png){ height=20em }
 
 This ray from our king can **also be used to detect pins**. If the king attack intersects
 with a corresponding ennemy slider, we simply need to count how many of our pieces
@@ -458,7 +458,7 @@ The only thing that changes for the king is that we mask its potential moves not
 with the usual empty squares/ennemy pieces, but also by **`!attacked_squares`{.rust}**
 
 #### Problem: en passant discovered check
-![Remember this problematic position?](/files/writing-an-efficient-game-representation-for-chess/pin.png){ max-height=20em }
+![Remember this problematic position?](/files/writing-an-efficient-game-representation-for-chess/pin.png){ height=20em }
 
 Well, it's time to deal with it now! We'll also take time to actually deal with en passant
 captures after delaying that for most of this post.
@@ -480,7 +480,7 @@ the captured and capturer from the blockers bitboard, reaches a queen or rook.
 > At first, I had an additionnal check for discovered checks from bishops, in such positions
 > for example:
 >
-> ![Capturing the pawn en passant would discover an attack on our king! Oh... no?](/files/writing-an-efficient-game-representation-for-chess/non_problem.png){ max-height=20em }
+> ![Capturing the pawn en passant would discover an attack on our king! Oh... no?](/files/writing-an-efficient-game-representation-for-chess/non_problem.png){ height=20em }
 >
 > In reality, such positions **cannot happen after a series of legal moves**. The reason is that
 > there are only two ways we can get into such a position:

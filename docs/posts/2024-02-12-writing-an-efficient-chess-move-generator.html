@@ -261,7 +261,7 @@ anyway.</p>
 <p>What we want is, once again, to <strong>mask relevant blockers</strong> and use this as a key. Already, we’ve
 simplified our search quite a bit!</p>
 <figure>
-<img src="../files/writing-an-efficient-game-representation-for-chess/relevant_blockers.png" data-max-height="40em" alt="Computing relevant blockers for a bishop on c4." />
+<img src="../files/writing-an-efficient-game-representation-for-chess/relevant_blockers.png" style="height:40em" alt="Computing relevant blockers for a bishop on c4." />
 <figcaption aria-hidden="true">Computing relevant blockers for a bishop on c4.</figcaption>
 </figure>
 <p>Now, we’ve got a little problem… <em>how do we transform our relevant blockers into a unique key?</em></p>
@@ -318,7 +318,7 @@ Well, there are a few:</p>
 <li>castling over attacked squares.</li>
 </ul>
 <figure>
-<img src="../files/writing-an-efficient-game-representation-for-chess/illegal_moves.png" data-max-height="20em" alt="Some situations that create illegal moves (in red)" />
+<img src="../files/writing-an-efficient-game-representation-for-chess/illegal_moves.png" style="height:20em" alt="Some situations that create illegal moves (in red)" />
 <figcaption aria-hidden="true">Some situations that create illegal moves (in red)</figcaption>
 </figure>
 <p><em>Phew</em>, okay, how do we deal with that?</p>
@@ -368,7 +368,7 @@ check our own king, otherwise we’d already be in an illegal position.</p>
 <p>First, the attack bitboard. One may think that simply looking up magic bitboards as
 we usually do would work, but this leads to a sneaky bug: <strong>our king could slide away from a check</strong>.</p>
 <figure>
-<img src="../files/writing-an-efficient-game-representation-for-chess/slide_away.png" data-max-height="20em" alt="Example where using the king as a blocker is incorrect: we could generate a move to the north, which would still leave us in check." />
+<img src="../files/writing-an-efficient-game-representation-for-chess/slide_away.png" style="height:20em" alt="Example where using the king as a blocker is incorrect: we could generate a move to the north, which would still leave us in check." />
 <figcaption aria-hidden="true">Example where using the king as a blocker is incorrect: we could generate a move to the north, which would still leave us in check.</figcaption>
 </figure>
 <blockquote>
@@ -394,7 +394,7 @@ to block the check. The way I do it is by generating corresponding slider moves 
 from our king</strong> and <strong>bypassing our pieces</strong>. The intersection of those attacks and the
 attacking piece moves will give us our attack ray!</p>
 <figure>
-<img src="../files/writing-an-efficient-game-representation-for-chess/pin_ray.png" data-max-height="20em" alt="The pin ray that we discover." />
+<img src="../files/writing-an-efficient-game-representation-for-chess/pin_ray.png" style="height:20em" alt="The pin ray that we discover." />
 <figcaption aria-hidden="true">The pin ray that we discover.</figcaption>
 </figure>
 <p>This ray from our king can <strong>also be used to detect pins</strong>. If the king attack intersects
@@ -447,7 +447,7 @@ We can find this information by counting the number of checking pieces.</p>
 with the usual empty squares/ennemy pieces, but also by <strong><code class="sourceCode rust"><span class="op">!</span>attacked_squares</code></strong></p>
 <h4 id="problem-en-passant-discovered-check">Problem: en passant discovered check</h4>
 <figure>
-<img src="../files/writing-an-efficient-game-representation-for-chess/pin.png" data-max-height="20em" alt="Remember this problematic position?" />
+<img src="../files/writing-an-efficient-game-representation-for-chess/pin.png" style="height:20em" alt="Remember this problematic position?" />
 <figcaption aria-hidden="true">Remember this problematic position?</figcaption>
 </figure>
 <p>Well, it’s time to deal with it now! We’ll also take time to actually deal with en passant
@@ -468,7 +468,7 @@ the captured and capturer from the blockers bitboard, reaches a queen or rook.</
 <p>At first, I had an additionnal check for discovered checks from bishops, in such positions
 for example:</p>
 <figure>
-<img src="../files/writing-an-efficient-game-representation-for-chess/non_problem.png" data-max-height="20em" alt="Capturing the pawn en passant would discover an attack on our king! Oh… no?" />
+<img src="../files/writing-an-efficient-game-representation-for-chess/non_problem.png" style="height:20em" alt="Capturing the pawn en passant would discover an attack on our king! Oh… no?" />
 <figcaption aria-hidden="true">Capturing the pawn en passant would discover an attack on our king! Oh… no?</figcaption>
 </figure>
 <p>In reality, such positions <strong>cannot happen after a series of legal moves</strong>. The reason is that
