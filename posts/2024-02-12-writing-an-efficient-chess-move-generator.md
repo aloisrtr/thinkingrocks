@@ -246,7 +246,7 @@ anyway.
 What we want is, once again, to **mask relevant blockers** and use this as a key. Already, we've
 simplified our search quite a bit!
 
-![Computing relevant blockers for a bishop on c4.](/files/writing-an-efficient-game-representation-for-chess/relevant_blockers.png){ max-height=40em }
+![Computing relevant blockers for a bishop on c4.](/files/writing-an-efficient-game-representation-for-chess/relevant_blockers.png){ height=40em }
 
 Now, we've got a little problem... *how do we transform our relevant blockers into a unique key?*
 
@@ -313,7 +313,7 @@ Well, there are a few:
 - in general, king moves to attacked squares.
 - castling over attacked squares.
 
-![Some situations that create illegal moves (in red)](/files/writing-an-efficient-game-representation-for-chess/illegal_moves.png){ max-height=20em }
+![Some situations that create illegal moves (in red)](/files/writing-an-efficient-game-representation-for-chess/illegal_moves.png){ height=20em }
 
 *Phew*, okay, how do we deal with that?
 
@@ -371,7 +371,7 @@ Now we get to the fun part: **sliders**.
 First, the attack bitboard. One may think that simply looking up magic bitboards as
 we usually do would work, but this leads to a sneaky bug: **our king could slide away from a check**.
 
-![Example where using the king as a blocker is incorrect: we could generate a move to the north, which would still leave us in check.](/files/writing-an-efficient-game-representation-for-chess/slide_away.png){ max-height=20em }
+![Example where using the king as a blocker is incorrect: we could generate a move to the north, which would still leave us in check.](/files/writing-an-efficient-game-representation-for-chess/slide_away.png){ height=20em }
 
 > You might notice that some squares here are not *actually attacked*. So is our attack bitboard
 > wrong?
@@ -401,7 +401,7 @@ to block the check. The way I do it is by generating corresponding slider moves 
 from our king** and **bypassing our pieces**. The intersection of those attacks and the
 attacking piece moves will give us our attack ray!
 
-![The pin ray that we discover.](/files/writing-an-efficient-game-representation-for-chess/pin_ray.png){ max-height=20em }
+![The pin ray that we discover.](/files/writing-an-efficient-game-representation-for-chess/pin_ray.png){ height=20em }
 
 This ray from our king can **also be used to detect pins**. If the king attack intersects
 with a corresponding ennemy slider, we simply need to count how many of our pieces
@@ -458,7 +458,7 @@ The only thing that changes for the king is that we mask its potential moves not
 with the usual empty squares/ennemy pieces, but also by **`!attacked_squares`{.rust}**
 
 #### Problem: en passant discovered check
-![Remember this problematic position?](/files/writing-an-efficient-game-representation-for-chess/pin.png){ max-height=20em }
+![Remember this problematic position?](/files/writing-an-efficient-game-representation-for-chess/pin.png){ height=20em }
 
 Well, it's time to deal with it now! We'll also take time to actually deal with en passant
 captures after delaying that for most of this post.
@@ -480,7 +480,7 @@ the captured and capturer from the blockers bitboard, reaches a queen or rook.
 > At first, I had an additionnal check for discovered checks from bishops, in such positions
 > for example:
 >
-> ![Capturing the pawn en passant would discover an attack on our king! Oh... no?](/files/writing-an-efficient-game-representation-for-chess/non_problem.png){ max-height=20em }
+> ![Capturing the pawn en passant would discover an attack on our king! Oh... no?](/files/writing-an-efficient-game-representation-for-chess/non_problem.png){ height=20em }
 >
 > In reality, such positions **cannot happen after a series of legal moves**. The reason is that
 > there are only two ways we can get into such a position:
@@ -619,31 +619,32 @@ Perft is also a good way to compare the speed of game representations, since it
 makes use of every function we've defined so far!
 
 We'll make a little contest, comparing my game representation to 
-[QPerft](https://home.hccnet.nl/h.g.muller/dwnldpage.html) and [Stockfish](https://stockfishchess.org/).
+[QPerft](https://home.hccnet.nl/h.g.muller/dwnldpage.html).
 The former uses a square-centric board representation and is deemed the baseline against
-which most engines compare their game representation, while the latter is, well, **Stockfish**.
+which most engines compare their game representation. In the [mailbox trials], it was
+deemed comparable in speed to [Stockfish](https://github.com/official-stockfish/Stockfish)'s bitboard representation.
 
-> Please note that while QPerft is designed specifically for move generation and
-> perft, Stockfish has other problems to deal with.
+> I planned on including Stockfish itself to this comparison at first. The thing is, recent
+> Stockfish implementations include an [NNUE](https://en.wikipedia.org/wiki/Efficiently_updatable_neural_network), which
+> slows it down **dramatically**.
 >
-> Notably, it likely provides more information about moves, game state, etc to help
-> alleviate some costs from the rest of the engine. This might slow it down a bit in
-> perft, but hey, at least it can actually play chess games *half-decently*.
->
-> It's only the best rated chess engine out there after all!
+> Simply put, it wouldn't have been fair to compare two game representations made
+> specifically for the perft test against one that embeds a full neural network in
+> its game representation!
 
 For reference, the benchmarking setup involved running each of the usual perft positions on
 each competing program. This is done using [hyperfine](https://github.com/sharkdp/hyperfine). 
-The code ran on an AMD Ryzen 5 5500U, in single core perft with bulk-counting. 
+The code ran on an AMD Ryzen 5 5500U, in single core iterative perft with bulk-counting
+on horizon nodes.
 
 **Here are the fabled results:**
 
-|                       | **start** (7)     | **kiwipete** (6)  | **endgame** (8)   | **mirrored** (6) | **talkchess** (5) | **alternative** (7) |
-|:---------------------:|:-----------------:|:-----------------:|:-----------------:|:----------------:|:-----------------:|:-------------------:|
-| **`chameleon-perft`** | 12.244s (261Mnps) | 24.005s (335Mnps) | 12.290s (245Mnps) | 2.058s (343Mnps) | 0.269s (334Mnps)  | nothing yet         |
-| **`qperft`**          | 12.598s (254Mnps) | 33.261s (242Mnps) | 23.447s (128Mnps) | 4.337s (163Mnps) | 0.505s (178Mnps)  | nothing yet         |
-
-Damn, that's **pretty efficient!** We beat QPerft on every position!!! It's safe
+|                     | **start** (7)     | **kiwipete** (6)  | **endgame** (8)   | **mirrored** (6) | **talkchess** (5) | **alternative** (6) | **mean** (deviation) |
+|:-------------------:|:-----------------:|:-----------------:|:-----------------:|:----------------:|:-----------------:|:-------------------:|:--------------------:|
+| **chameleon-perft** | 12.662s (252Mnps) | 24.432s (329Mnps) | 13.212s (228Mnps) | 2.103s (336Mnps) | 0.274s (328Mnps)  | 20.773s (333Mnps)   | 301Mnps (~47.9)      |
+| **qperft**          | 12.612s (253Mnps) | 33.286s (241Mnps) | 23.310s (129Mnps) | 4.354s (162Mnps) | 0.502s (179Mnps)  | 18.519s (374Mnps)   | 223Mnps (~87.8)      |
+  
+Damn, that's **pretty efficient!** We beat or equalize with QPerft on almost every position!!! It's safe
 to say that our game representation is good enough at this point.
 
 > Note that this happens on **my specific** CPU, results may vary dependending on

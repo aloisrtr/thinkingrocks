@@ -1,51 +1,17 @@
-<!doctype html>
-<html lang="en">
-
-<head>
-  <meta charset="utf-8">
-  <meta http-equiv="x-ua-compatible" content="ie=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ThinkingRocks - Writing an efficient game representation for chess</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-  <link rel="stylesheet" href="../css/syntax.css" />
-  <link rel="stylesheet" href="../css/default.css" />
-  <link rel="icon" href="../files/favicon.ico" />
-</head>
-
-<body>
-  <header>
-    <div id="nav">
-      <a href="../" class="mobile-hidden">home</a>
-      <a href="../blog.html" class="mobile-hidden">posts</a>
-      <a href="../files/resume.pdf" class="mobile-hidden" target="_blank">resume</a>
-    </div>
-
-    <div id="socials">
-      <p class="mobile-hidden">alois.rautureau@ens-rennes.fr</p>
-      <a href="mailto:alois.rautureau@ens-rennes.fr" target="_blank">
-        <i class="fa fa-envelope nav-icon"></i>
-      </a>
-      <div style="height: 1.7em;" class="separator"></div>
-      <a href="https://gitlab.com/aloisrtr" target="_blank">
-        <i class="fa fa-gitlab nav-icon"></i>
-      </a>
-      <a href="https://github.com/aloisrtr" target="_blank">
-        <i class="fa fa-github nav-icon"></i>
-      </a>
-    </div>
-  </header>
-
-
-
-  <main role="main">
-    <p class="head">
-  Writing an efficient game representation for chess
-</p>
-<p class="date">
-  posted on February 12, 2024
-</p>
-<div>
-  <p>I’ve recently (re-)fell in the good old rabbit hole that got me into computer science
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"
+    xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <channel>
+        <title>ThinkingRocks</title>
+        <link>https://aloisrtr.github.io/thinkingrocks</link>
+        <description><![CDATA[Blogposts about the endeavours of a computer science student]]></description>
+        <atom:link href="https://aloisrtr.github.io/thinkingrocks/rss.xml" rel="self"
+                   type="application/rss+xml" />
+        <lastBuildDate>Mon, 12 Feb 2024 00:00:00 UT</lastBuildDate>
+        <item>
+    <title>Writing an efficient game representation for chess</title>
+    <link>https://aloisrtr.github.io/thinkingrocks/posts/2024-02-12-writing-an-efficient-chess-move-generator.html</link>
+    <description><![CDATA[<p>I’ve recently (re-)fell in the good old rabbit hole that got me into computer science
 in the first place: chess programming.</p>
 <p>This is probably my third or fourth rewrite of <a href="https://github.com/aloisrtr/chameleon-chess">chameleon-chess</a>,
 except this time I’m pretty happy with the game representation, which was a huge blocking
@@ -63,7 +29,7 @@ to write about how!</p>
 as a really really big directed graphs with an edge from state A to B is there is
 an action that can transform A into B when applied.</p>
 <figure>
-<img src="../files/writing-an-efficient-game-representation-for-chess/chess_tree.png" data-max-height="40em" alt="A really tiny subset of the chess game graph" />
+<img src="/files/writing-an-efficient-game-representation-for-chess/chess_tree.png" data-max-height="40em" alt="A really tiny subset of the chess game graph" />
 <figcaption aria-hidden="true">A really tiny subset of the chess game graph</figcaption>
 </figure>
 <blockquote>
@@ -122,7 +88,7 @@ so we’ll generate only legal moves.</p>
 the cache efficiently is incredibly important for chess engines.</p>
 <p>Applying this, here’s a good and pretty standard way to store moves and piece types:</p>
 <figure>
-<img src="../files/writing-an-efficient-game-representation-for-chess/encoding_pieces.png" data-max-height="20em" alt="Encoding for pieces and moves" />
+<img src="/files/writing-an-efficient-game-representation-for-chess/encoding_pieces.png" data-max-height="20em" alt="Encoding for pieces and moves" />
 <figcaption aria-hidden="true">Encoding for pieces and moves</figcaption>
 </figure>
 <blockquote>
@@ -132,7 +98,7 @@ the cache efficiently is incredibly important for chess engines.</p>
 The former keeps information of where pieces are, while the latter
 keeps information of what is on a given square.</p>
 <figure>
-<img src="../files/writing-an-efficient-game-representation-for-chess/square_piece.png" data-max-height="15em" alt="Diagram comparing piece and square centric representations" />
+<img src="/files/writing-an-efficient-game-representation-for-chess/square_piece.png" data-max-height="15em" alt="Diagram comparing piece and square centric representations" />
 <figcaption aria-hidden="true">Diagram comparing piece and square centric representations</figcaption>
 </figure>
 <ul>
@@ -156,7 +122,7 @@ We can then do setwise operations in <strong>a single instruction</strong>.</p>
 <p>For example, say we want to get a bitboard of white pawns. Well, this translates to:</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode rust"><code class="sourceCode rust"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> white_pawn_bitboard <span class="op">=</span> pawn_bitboard <span class="op">&amp;</span> white_bitboard</span></code></pre></div>
 <figure>
-<img src="../files/writing-an-efficient-game-representation-for-chess/bitboard_example.png" data-max-height="30em" alt="Bitboard usage example" />
+<img src="/files/writing-an-efficient-game-representation-for-chess/bitboard_example.png" data-max-height="30em" alt="Bitboard usage example" />
 <figcaption aria-hidden="true">Bitboard usage example</figcaption>
 </figure>
 <p>This becomes particularily useful when applying shifts, or filtering attackable/movable
@@ -203,7 +169,7 @@ which are about to promote, separating them from the rest:</p>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> pawns <span class="op">=</span> pawns <span class="op">^</span> promoting_pawns<span class="op">;</span></span></code></pre></div>
 <p>We can than generate pawn moves by <strong>shifting the entire bitboard</strong> in different directions.</p>
 <figure>
-<img src="../files/writing-an-efficient-game-representation-for-chess/shift_example.png" data-max-height="20em" alt="We shift the bitboard in the north direction, moving all bits to the next rank. This represents our pawn pushes!" />
+<img src="/files/writing-an-efficient-game-representation-for-chess/shift_example.png" data-max-height="20em" alt="We shift the bitboard in the north direction, moving all bits to the next rank. This represents our pawn pushes!" />
 <figcaption aria-hidden="true">We shift the bitboard in the north direction, moving all bits to the next rank. This represents our pawn pushes!</figcaption>
 </figure>
 <p>However, we’re not done here: what if there are already pieces on the squares we want to
@@ -212,7 +178,7 @@ get to? <strong>Pawns can’t capture by moving forward!</strong></p>
 set bits wherever there are no pieces. This bitboard can be obtained by negating the union
 of our two color bitboards, pretty neat!</p>
 <figure>
-<img src="../files/writing-an-efficient-game-representation-for-chess/blockers_example.png" data-max-height="20em" alt="Taking an arbitraty empty bitboard, here’s what would happen." />
+<img src="/files/writing-an-efficient-game-representation-for-chess/blockers_example.png" data-max-height="20em" alt="Taking an arbitraty empty bitboard, here’s what would happen." />
 <figcaption aria-hidden="true">Taking an arbitraty empty bitboard, here’s what would happen.</figcaption>
 </figure>
 <p>I’m not going to detail everything here, but the same ideas can be applied
@@ -226,7 +192,7 @@ here.</p>
 We could then access the moves for a knight on d5 this way:</p>
 <div class="sourceCode" id="cb5"><pre class="sourceCode rust"><code class="sourceCode rust"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> knight_moves <span class="op">=</span> KNIGHT_LOOKUP[<span class="pp">Square::</span>D5]<span class="op">;</span></span></code></pre></div>
 <figure>
-<img src="../files/writing-an-efficient-game-representation-for-chess/lookup_knight.png" data-max-height="20em" alt="Example of knight moves from the d5 square." />
+<img src="/files/writing-an-efficient-game-representation-for-chess/lookup_knight.png" data-max-height="20em" alt="Example of knight moves from the d5 square." />
 <figcaption aria-hidden="true">Example of knight moves from the d5 square.</figcaption>
 </figure>
 <p>There’s not much going on for knights and kings (<em>for now</em>) appart from that, they’re pretty simple!</p>
@@ -261,7 +227,7 @@ anyway.</p>
 <p>What we want is, once again, to <strong>mask relevant blockers</strong> and use this as a key. Already, we’ve
 simplified our search quite a bit!</p>
 <figure>
-<img src="../files/writing-an-efficient-game-representation-for-chess/relevant_blockers.png" style="height:40em" alt="Computing relevant blockers for a bishop on c4." />
+<img src="/files/writing-an-efficient-game-representation-for-chess/relevant_blockers.png" style="height:40em" alt="Computing relevant blockers for a bishop on c4." />
 <figcaption aria-hidden="true">Computing relevant blockers for a bishop on c4.</figcaption>
 </figure>
 <p>Now, we’ve got a little problem… <em>how do we transform our relevant blockers into a unique key?</em></p>
@@ -318,7 +284,7 @@ Well, there are a few:</p>
 <li>castling over attacked squares.</li>
 </ul>
 <figure>
-<img src="../files/writing-an-efficient-game-representation-for-chess/illegal_moves.png" style="height:20em" alt="Some situations that create illegal moves (in red)" />
+<img src="/files/writing-an-efficient-game-representation-for-chess/illegal_moves.png" style="height:20em" alt="Some situations that create illegal moves (in red)" />
 <figcaption aria-hidden="true">Some situations that create illegal moves (in red)</figcaption>
 </figure>
 <p><em>Phew</em>, okay, how do we deal with that?</p>
@@ -368,7 +334,7 @@ check our own king, otherwise we’d already be in an illegal position.</p>
 <p>First, the attack bitboard. One may think that simply looking up magic bitboards as
 we usually do would work, but this leads to a sneaky bug: <strong>our king could slide away from a check</strong>.</p>
 <figure>
-<img src="../files/writing-an-efficient-game-representation-for-chess/slide_away.png" style="height:20em" alt="Example where using the king as a blocker is incorrect: we could generate a move to the north, which would still leave us in check." />
+<img src="/files/writing-an-efficient-game-representation-for-chess/slide_away.png" style="height:20em" alt="Example where using the king as a blocker is incorrect: we could generate a move to the north, which would still leave us in check." />
 <figcaption aria-hidden="true">Example where using the king as a blocker is incorrect: we could generate a move to the north, which would still leave us in check.</figcaption>
 </figure>
 <blockquote>
@@ -394,7 +360,7 @@ to block the check. The way I do it is by generating corresponding slider moves 
 from our king</strong> and <strong>bypassing our pieces</strong>. The intersection of those attacks and the
 attacking piece moves will give us our attack ray!</p>
 <figure>
-<img src="../files/writing-an-efficient-game-representation-for-chess/pin_ray.png" style="height:20em" alt="The pin ray that we discover." />
+<img src="/files/writing-an-efficient-game-representation-for-chess/pin_ray.png" style="height:20em" alt="The pin ray that we discover." />
 <figcaption aria-hidden="true">The pin ray that we discover.</figcaption>
 </figure>
 <p>This ray from our king can <strong>also be used to detect pins</strong>. If the king attack intersects
@@ -447,7 +413,7 @@ We can find this information by counting the number of checking pieces.</p>
 with the usual empty squares/ennemy pieces, but also by <strong><code class="sourceCode rust"><span class="op">!</span>attacked_squares</code></strong></p>
 <h4 id="problem-en-passant-discovered-check">Problem: en passant discovered check</h4>
 <figure>
-<img src="../files/writing-an-efficient-game-representation-for-chess/pin.png" style="height:20em" alt="Remember this problematic position?" />
+<img src="/files/writing-an-efficient-game-representation-for-chess/pin.png" style="height:20em" alt="Remember this problematic position?" />
 <figcaption aria-hidden="true">Remember this problematic position?</figcaption>
 </figure>
 <p>Well, it’s time to deal with it now! We’ll also take time to actually deal with en passant
@@ -468,7 +434,7 @@ the captured and capturer from the blockers bitboard, reaches a queen or rook.</
 <p>At first, I had an additionnal check for discovered checks from bishops, in such positions
 for example:</p>
 <figure>
-<img src="../files/writing-an-efficient-game-representation-for-chess/non_problem.png" style="height:20em" alt="Capturing the pawn en passant would discover an attack on our king! Oh… no?" />
+<img src="/files/writing-an-efficient-game-representation-for-chess/non_problem.png" style="height:20em" alt="Capturing the pawn en passant would discover an attack on our king! Oh… no?" />
 <figcaption aria-hidden="true">Capturing the pawn en passant would discover an attack on our king! Oh… no?</figcaption>
 </figure>
 <p>In reality, such positions <strong>cannot happen after a series of legal moves</strong>. The reason is that
@@ -669,14 +635,11 @@ instruction (or none at all), bitboard serialization takes a serious hit!</p>
 where all of the actual code lives!</p>
 <p class="head center">
 See ya!
-</p>
-</div>
-  </main>
+</p>]]></description>
+    <pubDate>Mon, 12 Feb 2024 00:00:00 UT</pubDate>
+    <guid>https://aloisrtr.github.io/thinkingrocks/posts/2024-02-12-writing-an-efficient-chess-move-generator.html</guid>
+    <dc:creator>Aloïs Rautureau</dc:creator>
+</item>
 
-  <footer>
-    Site generated using
-    <a href="http://jaspervdj.be/hakyll">Hakyll</a>
-  </footer>
-</body>
-
-</html>
+    </channel>
+</rss>

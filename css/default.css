@@ -196,5 +196,18 @@ figure {
 
 figure>* {
   margin: auto;
-  max-width: 80vw;
+  max-width: 90%;
+}
+
+table {
+  border-collapse: collapse;
+  font-weight: normal;
+}
+table, th, td {
+  border: 1px solid;
+  font-weight: normal;
+  font-size: inherit
+}
+th * {
+  color: rgb(206, 93, 151);
 }
