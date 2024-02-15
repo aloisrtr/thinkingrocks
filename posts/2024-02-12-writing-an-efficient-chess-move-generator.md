@@ -619,31 +619,32 @@ Perft is also a good way to compare the speed of game representations, since it
 makes use of every function we've defined so far!
 
 We'll make a little contest, comparing my game representation to 
-[QPerft](https://home.hccnet.nl/h.g.muller/dwnldpage.html) and [Stockfish](https://stockfishchess.org/).
+[QPerft](https://home.hccnet.nl/h.g.muller/dwnldpage.html).
 The former uses a square-centric board representation and is deemed the baseline against
-which most engines compare their game representation, while the latter is, well, **Stockfish**.
+which most engines compare their game representation. In the [mailbox trials], it was
+deemed comparable in speed to [Stockfish](https://github.com/official-stockfish/Stockfish)'s bitboard representation.
 
-> Please note that while QPerft is designed specifically for move generation and
-> perft, Stockfish has other problems to deal with.
+> I planned on including Stockfish itself to this comparison at first. The thing is, recent
+> Stockfish implementations include an [NNUE](https://en.wikipedia.org/wiki/Efficiently_updatable_neural_network), which
+> slows it down **dramatically**.
 >
-> Notably, it likely provides more information about moves, game state, etc to help
-> alleviate some costs from the rest of the engine. This might slow it down a bit in
-> perft, but hey, at least it can actually play chess games *half-decently*.
->
-> It's only the best rated chess engine out there after all!
+> Simply put, it wouldn't have been fair to compare two game representations made
+> specifically for the perft test against one that embeds a full neural network in
+> its game representation!
 
 For reference, the benchmarking setup involved running each of the usual perft positions on
 each competing program. This is done using [hyperfine](https://github.com/sharkdp/hyperfine). 
-The code ran on an AMD Ryzen 5 5500U, in single core perft with bulk-counting. 
+The code ran on an AMD Ryzen 5 5500U, in single core iterative perft with bulk-counting
+on horizon nodes.
 
 **Here are the fabled results:**
 
-|                       | **start** (7)     | **kiwipete** (6)  | **endgame** (8)   | **mirrored** (6) | **talkchess** (5) | **alternative** (7) |
-|:---------------------:|:-----------------:|:-----------------:|:-----------------:|:----------------:|:-----------------:|:-------------------:|
-| **`chameleon-perft`** | 12.244s (261Mnps) | 24.005s (335Mnps) | 12.290s (245Mnps) | 2.058s (343Mnps) | 0.269s (334Mnps)  | nothing yet         |
-| **`qperft`**          | 12.598s (254Mnps) | 33.261s (242Mnps) | 23.447s (128Mnps) | 4.337s (163Mnps) | 0.505s (178Mnps)  | nothing yet         |
-
-Damn, that's **pretty efficient!** We beat QPerft on every position!!! It's safe
+|                     | **start** (7)     | **kiwipete** (6)  | **endgame** (8)   | **mirrored** (6) | **talkchess** (5) | **alternative** (6) | **mean** (deviation) |
+|:-------------------:|:-----------------:|:-----------------:|:-----------------:|:----------------:|:-----------------:|:-------------------:|:--------------------:|
+| **chameleon-perft** | 12.662s (252Mnps) | 24.432s (329Mnps) | 13.212s (228Mnps) | 2.103s (336Mnps) | 0.274s (328Mnps)  | 20.773s (333Mnps)   | 301Mnps (~47.9)      |
+| **qperft**          | 12.612s (253Mnps) | 33.286s (241Mnps) | 23.310s (129Mnps) | 4.354s (162Mnps) | 0.502s (179Mnps)  | 18.519s (374Mnps)   | 223Mnps (~87.8)      |
+  
+Damn, that's **pretty efficient!** We beat or equalize with QPerft on almost every position!!! It's safe
 to say that our game representation is good enough at this point.
 
 > Note that this happens on **my specific** CPU, results may vary dependending on
